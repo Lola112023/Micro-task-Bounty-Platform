@@ -1,13 +1,5 @@
 # 校园任务悬赏平台 - Vue3 前端开发任务规划
 
-## 项目概述
-
-基于 target.md 需求文档和 example.html 原型，在 Vue3 + TypeScript + Pinia + Vue Router 技术栈下，实现北京理工大学校园任务悬赏平台的完整前端。
-
-**色彩方案**：以北理工校徽蓝（#1E56A0）为主色调，参考 example.html 的 CSS 变量设计。
-
----
-
 ## 技术选型
 
 | 技术         | 版本/说明                             |
