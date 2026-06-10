@@ -9,9 +9,10 @@ export const useTaskStore = defineStore('task', () => {
   const taskList = ref<TaskListItem[]>([])
 
   async function fetchCategories() {
-    if (categories.value.length) return
+    if (categories.value?.length) return
     try {
-      categories.value = await getCategories()
+      const data = await getCategories()
+      if (Array.isArray(data)) categories.value = data
     } catch {
       // 静默失败，使用缓存
     }

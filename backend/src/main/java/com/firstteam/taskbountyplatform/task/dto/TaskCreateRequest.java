@@ -1,5 +1,6 @@
 package com.firstteam.taskbountyplatform.task.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -23,14 +24,17 @@ public class TaskCreateRequest {
 
     @Min(30)
     @Max(43200)
+    @JsonProperty("durationMinutes")
     private Integer deadlineMinutes;
 
     @Min(1)
     @Max(5000)
+    @JsonProperty("reward")
     private Integer rewardPoints;
 
     @Min(1)
     @Max(14)
+    @JsonProperty("listDays")
     private Integer autoCancelDays;
 
     public String getTitle() {

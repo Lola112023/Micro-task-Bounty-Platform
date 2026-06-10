@@ -15,7 +15,10 @@ function warn(fn: string) {
 export async function getNotifications(params: {
   type?: string; isRead?: boolean; page?: number; pageSize?: number
 }): Promise<PageResult<NotificationItem>> {
-  try { return await request.get('/notifications', { params }) }
+  try {
+    const { pageSize, ...rest } = params
+    return await request.get('/notifications', { params: { ...rest, size: pageSize || 20 } })
+  }
   catch {
     warn('getNotifications')
     return { total: MOCK_NOTIFICATIONS.length, page: 1, pageSize: 20, list: [...MOCK_NOTIFICATIONS] }
@@ -30,7 +33,7 @@ export async function getUnreadCount(): Promise<{ count: number }> {
 
 /** 获取最近5条未读通知 */
 export async function getRecentUnread(): Promise<NotificationItem[]> {
-  try { return await request.get('/notifications/recent-unread') }
+  try { return await request.get('/notifications/unread') }
   catch {
     warn('getRecentUnread')
     return MOCK_NOTIFICATIONS.filter(n => !n.isRead).slice(0, 5)
@@ -39,7 +42,7 @@ export async function getRecentUnread(): Promise<NotificationItem[]> {
 
 /** 标记单条通知为已读 */
 export async function markAsRead(notificationId: number): Promise<void> {
-  try { return await request.put(`/notifications/${notificationId}/read`) }
+  try { return await request.put('/notifications/read', { ids: [notificationId] }) }
   catch { warn('markAsRead') }
 }
 
@@ -51,12 +54,12 @@ export async function markAllAsRead(): Promise<void> {
 
 /** 删除通知 */
 export async function deleteNotification(notificationId: number): Promise<void> {
-  try { return await request.delete(`/notifications/${notificationId}`) }
+  try { return await request.delete('/notifications', { data: { ids: [notificationId] } }) }
   catch { warn('deleteNotification') }
 }
 
 /** 批量删除通知 */
 export async function batchDeleteNotifications(ids: number[]): Promise<void> {
-  try { return await request.delete('/notifications/batch', { data: { ids } }) }
+  try { return await request.delete('/notifications', { data: { ids } }) }
   catch { warn('batchDeleteNotifications') }
 }

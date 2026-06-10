@@ -256,7 +256,7 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer) })
             <div><span class="info-label">上架天数：</span>{{ task.listDays }} 天</div>
           </div>
 
-          <div v-if="task.attachments.length" style="margin-top:14px">
+          <div v-if="task.attachments?.length" style="margin-top:14px">
             <div class="block-title">附件</div>
             <div v-for="att in task.attachments" :key="att.id" class="att-item">
               <el-icon><Paperclip /></el-icon>
@@ -270,7 +270,7 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer) })
         <div v-if="['PENDING_CONFIRM','COMPLETED'].includes(task.status) && task.deliveryText" class="card">
           <div class="block-title">📦 交付物</div>
           <p style="white-space:pre-wrap;color:#595959;line-height:1.8">{{ task.deliveryText }}</p>
-          <div v-for="att in task.deliveryAttachments" :key="att.id" class="att-item" style="margin-top:6px">
+          <div v-for="att in (task.deliveryAttachments || [])" :key="att.id" class="att-item" style="margin-top:6px">
             <el-icon><Paperclip /></el-icon>
             <a :href="att.url" target="_blank">{{ att.filename }}</a>
           </div>
@@ -392,7 +392,7 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer) })
         </div>
 
         <!-- 申请列表（发布者 & 发布中） -->
-        <div v-if="task.status === 'PUBLISHING' && isPublisher && applications.length" class="card">
+        <div v-if="task.status === 'PUBLISHING' && isPublisher && applications?.length" class="card">
           <div class="block-title">申请列表（{{ applications.length }}人）</div>
           <div v-for="app in applications" :key="app.id" class="app-item">
             <div class="app-info">
@@ -401,7 +401,7 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer) })
             </div>
             <div style="font-size:13px;color:#595959;margin:3px 0">{{ app.reason }}</div>
             <div style="font-size:12px;color:#aaa">{{ formatDateTime(app.appliedAt) }}</div>
-            <el-button v-if="app.status === 'PENDING'" type="primary" size="small" style="margin-top:6px"
+            <el-button v-if="app.status === 'REVIEWING'" type="primary" size="small" style="margin-top:6px"
               @click="handleSelectWinner(app.id, app.applicantNickname)">
               选为中标者
             </el-button>

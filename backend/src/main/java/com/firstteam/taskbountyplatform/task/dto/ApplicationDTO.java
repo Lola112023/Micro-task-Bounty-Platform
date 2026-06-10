@@ -1,5 +1,7 @@
 package com.firstteam.taskbountyplatform.task.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.time.LocalDateTime;
 
 public class ApplicationDTO {
@@ -8,7 +10,10 @@ public class ApplicationDTO {
     private Long applicantId;
     private String applicantNickname;
     private Integer applicantCreditScore;
+
+    @JsonProperty("reason")
     private String applyReason;
+
     private String status;
     private LocalDateTime appliedAt;
     private String applicantCompletionRate;

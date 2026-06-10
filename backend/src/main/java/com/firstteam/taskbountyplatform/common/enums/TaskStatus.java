@@ -26,6 +26,18 @@ public enum TaskStatus {
     /**
      * 检查是否允许转换到目标状态
      */
+    /**
+     * Accept frontend-compatible status name (PUBLISHING or PUBLISHED, etc.)
+     */
+    public static TaskStatus fromName(String name) {
+        if (name == null) throw new IllegalArgumentException("状态不能为空");
+        String upper = name.toUpperCase();
+        // Accept frontend names
+        if ("PUBLISHING".equals(upper)) return PUBLISHED;
+        if ("PENDING_CONFIRM".equals(upper)) return PENDING_CONFIRMATION;
+        return valueOf(upper);
+    }
+
     public boolean canTransitionTo(TaskStatus target) {
         return switch (this) {
             case PUBLISHED -> target == IN_PROGRESS || target == CANCELLED;

@@ -120,7 +120,7 @@ async function handleSubmit() {
   )
   loading.value = true
   const fd = new FormData()
-  Object.entries(form).forEach(([k, v]) => fd.append(k, String(v)))
+  fd.append('request', new Blob([JSON.stringify({...form})], { type: 'application/json' }))
   files.value.forEach(f => fd.append('files', f))
   try {
     if (isEdit.value && editId.value) {

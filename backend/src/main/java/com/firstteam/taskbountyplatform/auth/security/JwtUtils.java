@@ -20,12 +20,12 @@ public class JwtUtils {
         this.expiration = jwtConfig.getExpiration();
     }
 
-    public String generateToken(Long userId, String studentNo, String role) {
+    public String generateToken(Long userId, String username, String role) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + expiration);
         return Jwts.builder()
                 .subject(String.valueOf(userId))
-                .claim("studentNo", studentNo)
+                .claim("username", username)
                 .claim("role", role)
                 .issuedAt(now)
                 .expiration(expiryDate)
@@ -38,8 +38,8 @@ public class JwtUtils {
         return Long.parseLong(claims.getSubject());
     }
 
-    public String getStudentNoFromToken(String token) {
-        return (String) parseToken(token).get("studentNo");
+    public String getUsernameFromToken(String token) {
+        return (String) parseToken(token).get("username");
     }
 
     public String getRoleFromToken(String token) {

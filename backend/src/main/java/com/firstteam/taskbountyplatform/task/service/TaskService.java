@@ -156,7 +156,7 @@ public class TaskService {
         // Parse campus
         if (request.getCampus() != null && !request.getCampus().isBlank()) {
             try {
-                task.setCampus(CampusEnum.valueOf(request.getCampus()));
+                task.setCampus(CampusEnum.fromName(request.getCampus()));
             } catch (IllegalArgumentException e) {
                 throw new BusinessException(400, "无效的校区: " + request.getCampus());
             }
@@ -267,7 +267,7 @@ public class TaskService {
 
         TaskDTO dto = convertToTaskDTO(task, publisher);
 
-        // Get task files
+        // Get task files (always set to non-null list)
         List<FileObject> files = fileService.getFilesByBizType(
                 FileObject.BIZ_TYPE_TASK_ATTACHMENT, taskId);
         if (files != null && !files.isEmpty()) {
@@ -281,14 +281,59 @@ public class TaskService {
                 fd.setCreatedAt(f.getCreatedAt());
                 return fd;
             }).toList());
+        } else {
+            dto.setFiles(java.util.Collections.emptyList());
         }
 
         // Get application count (public info)
         long applicationCount = applicationRepository.findByTaskIdOrderByApplicantIdAsc(taskId).size();
         dto.setApplicationCount((int) applicationCount);
 
-        // Check if current user is the publisher (for publisher-only info)
+        // Calculate remaining list time for PUBLISHED tasks
+        if (task.getStatus() == TaskStatus.PUBLISHED && task.getPublishedAt() != null) {
+            long remainingMinutes = ChronoUnit.MINUTES.between(
+                    LocalDateTime.now(),
+                    task.getPublishedAt().plusDays(task.getAutoCancelDays()));
+            if (remainingMinutes <= 0) {
+                dto.setRemainingListTime("即将过期");
+            } else if (remainingMinutes < 1440) {
+                dto.setRemainingListTime(remainingMinutes / 60 + "小时");
+            } else {
+                dto.setRemainingListTime(remainingMinutes / 1440 + "天");
+            }
+        }
+
+        // Get current user for permission checks
         Long currentUserId = getCurrentUserIdOrNull();
+
+        // Compute canApply
+        if (currentUserId != null && task.getStatus() == TaskStatus.PUBLISHED
+                && !currentUserId.equals(task.getPublisherId())) {
+            boolean alreadyApplied = applicationRepository
+                    .findByTaskIdAndApplicantId(taskId, currentUserId).isPresent();
+            if (alreadyApplied) {
+                dto.setCanApply(false);
+                dto.setCanApplyReason("您已申请过该任务");
+            } else {
+                User currentUser = userRepository.findById(currentUserId).orElse(null);
+                if (currentUser != null && currentUser.getCreditScore() != null
+                        && currentUser.getCreditScore() < platformConfig.getCredit().getRestrictThreshold()) {
+                    dto.setCanApply(false);
+                    dto.setCanApplyReason("信用分不足，当前: " + currentUser.getCreditScore()
+                            + "，需要至少: " + platformConfig.getCredit().getRestrictThreshold());
+                } else {
+                    long activeOrders = applicationRepository.countActiveOrders(currentUserId);
+                    if (activeOrders >= platformConfig.getMaxConcurrentOrders()) {
+                        dto.setCanApply(false);
+                        dto.setCanApplyReason("进行中订单已达上限(" + platformConfig.getMaxConcurrentOrders() + "个)");
+                    } else {
+                        dto.setCanApply(true);
+                    }
+                }
+            }
+        }
+
+        // Check if current user is the publisher (for publisher-only info)
         if (currentUserId != null && currentUserId.equals(task.getPublisherId())) {
             // Publisher can see application list
             List<TaskApplication> apps = applicationRepository.findByTaskIdOrderByApplicantIdAsc(taskId);
@@ -308,6 +353,41 @@ public class TaskService {
         if (task.getWinnerId() != null) {
             userRepository.findById(task.getWinnerId())
                     .ifPresent(winner -> dto.setWinnerNickname(winner.getNickname()));
+        }
+
+        // Get delivery files (for IN_PROGRESS, PENDING_CONFIRMATION, COMPLETED tasks)
+        if (task.getStatus() == TaskStatus.IN_PROGRESS
+                || task.getStatus() == TaskStatus.PENDING_CONFIRMATION
+                || task.getStatus() == TaskStatus.COMPLETED) {
+            List<FileObject> deliveryFiles = fileService.getFilesByBizType(
+                    FileObject.BIZ_TYPE_DELIVERY_ATTACHMENT, taskId);
+            if (deliveryFiles != null && !deliveryFiles.isEmpty()) {
+                dto.setDeliveryFiles(deliveryFiles.stream().map(f -> {
+                    FileDTO fd = new FileDTO();
+                    fd.setId(f.getId());
+                    fd.setOriginalName(f.getOriginalName());
+                    fd.setFileUrl(f.getFileUrl());
+                    fd.setFileSize(f.getFileSize());
+                    fd.setContentType(f.getContentType());
+                    fd.setCreatedAt(f.getCreatedAt());
+                    return fd;
+                }).toList());
+            } else {
+                dto.setDeliveryFiles(java.util.Collections.emptyList());
+            }
+        } else {
+            dto.setDeliveryFiles(java.util.Collections.emptyList());
+        }
+
+        // Get appeal data
+        List<TaskAppeal> appeals = appealRepository.findByTaskId(taskId);
+        if (appeals != null && !appeals.isEmpty()) {
+            TaskAppeal latestAppeal = appeals.get(appeals.size() - 1);
+            dto.setAppealReason(latestAppeal.getReason());
+            if (TaskAppeal.STATUS_RESOLVED.equals(latestAppeal.getStatus())
+                    && latestAppeal.getAdminNote() != null) {
+                dto.setAppealResult(latestAppeal.getAdminNote());
+            }
         }
 
         return dto;
@@ -397,8 +477,7 @@ public class TaskService {
         }
         if (request.getCampus() != null && !request.getCampus().isBlank()) {
             try {
-                task.setCampus(CampusEnum.valueOf(request.getCampus()));
-            } catch (IllegalArgumentException e) {
+                task.setCampus(CampusEnum.fromName(request.getCampus()));            } catch (IllegalArgumentException e) {
                 throw new BusinessException(400, "无效的校区: " + request.getCampus());
             }
         }
@@ -729,14 +808,14 @@ public class TaskService {
         if (status != null && !status.isBlank()) {
             // Validate status string
             try {
-                TaskStatus.valueOf(status.toUpperCase());
+                TaskStatus.fromName(status);
             } catch (IllegalArgumentException e) {
                 throw new BusinessException(400, "无效的任务状态: " + status);
             }
             Specification<Task> spec = (root, query, cb) -> {
                 return cb.and(
                         cb.equal(root.get("publisherId"), userId),
-                        cb.equal(root.get("status"), TaskStatus.valueOf(status.toUpperCase()))
+                        cb.equal(root.get("status"), TaskStatus.fromName(status))
                 );
             };
             page = taskRepository.findAll(spec, sortedPageable);
@@ -1015,6 +1094,7 @@ public class TaskService {
         if (publisher != null) {
             dto.setPublisherNickname(publisher.getNickname());
             dto.setPublisherCreditScore(publisher.getCreditScore());
+            dto.setPublisherAnnouncement(publisher.getAnnouncement());
         }
         dto.setWinnerId(task.getWinnerId());
         dto.setCategoryId(task.getCategoryId());
@@ -1022,11 +1102,12 @@ public class TaskService {
         dto.setTitle(task.getTitle());
         dto.setDescription(task.getDescription());
         if (task.getCampus() != null) {
-            dto.setCampus(task.getCampus().name());
+            dto.setCampus(task.getCampus().getDisplayName());
         }
         dto.setRewardPoints(task.getRewardPoints());
         dto.setDeadlineMinutes(task.getDeadlineMinutes());
-        dto.setStatus(task.getStatus().name());
+        dto.setListDays(task.getAutoCancelDays());
+        dto.setStatus(mapStatusForFrontend(task.getStatus()));
         dto.setPublishedAt(task.getPublishedAt());
         dto.setAwardedAt(task.getAwardedAt());
         dto.setDeadlineAt(task.getDeadlineAt());
@@ -1037,6 +1118,18 @@ public class TaskService {
     }
 
     // ========================================================================
+    // Helper: map TaskStatus enum name to frontend-compatible name
+    // ========================================================================
+
+    private String mapStatusForFrontend(TaskStatus status) {
+        return switch (status) {
+            case PUBLISHED -> "PUBLISHING";
+            case PENDING_CONFIRMATION -> "PENDING_CONFIRM";
+            default -> status.name();
+        };
+    }
+
+    // ========================================================================
     // Helper: convert Task entity -> TaskCardDTO
     // ========================================================================
 
@@ -1044,10 +1137,16 @@ public class TaskService {
         TaskCardDTO dto = new TaskCardDTO();
         dto.setId(task.getId());
         dto.setTitle(task.getTitle());
+        dto.setCategoryId(task.getCategoryId());
         dto.setCategoryName(task.getCategoryName());
+        if (task.getCampus() != null) {
+            dto.setCampus(task.getCampus().getDisplayName());
+        }
         dto.setRewardPoints(task.getRewardPoints());
         dto.setDeadlineMinutes(task.getDeadlineMinutes());
-        dto.setStatus(task.getStatus().name());
+        dto.setStatus(mapStatusForFrontend(task.getStatus()));
+        dto.setPublisherId(task.getPublisherId());
+        dto.setDeadlineAt(task.getDeadlineAt());
         dto.setPublishedAt(task.getPublishedAt());
 
         // Calculate remaining time string
@@ -1078,9 +1177,10 @@ public class TaskService {
             }
         }
 
-        // Get publisher nickname
+        // Get publisher nickname and credit score
         userRepository.findById(task.getPublisherId()).ifPresent(pub -> {
             dto.setPublisherNickname(pub.getNickname());
+            dto.setPublisherCreditScore(pub.getCreditScore());
         });
 
         return dto;

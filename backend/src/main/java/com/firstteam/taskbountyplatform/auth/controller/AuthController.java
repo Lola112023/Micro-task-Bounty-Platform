@@ -2,6 +2,7 @@ package com.firstteam.taskbountyplatform.auth.controller;
 
 import com.firstteam.taskbountyplatform.auth.dto.LoginRequest;
 import com.firstteam.taskbountyplatform.auth.dto.LoginResponse;
+import com.firstteam.taskbountyplatform.auth.dto.RegisterRequest;
 import com.firstteam.taskbountyplatform.auth.service.AuthService;
 import com.firstteam.taskbountyplatform.common.response.ApiResponse;
 import jakarta.validation.Valid;
@@ -15,6 +16,11 @@ public class AuthController {
 
     public AuthController(AuthService authService) {
         this.authService = authService;
+    }
+
+    @PostMapping("/register")
+    public ApiResponse<LoginResponse> register(@Valid @RequestBody RegisterRequest request) {
+        return ApiResponse.success("注册成功", authService.register(request));
     }
 
     @PostMapping("/login")

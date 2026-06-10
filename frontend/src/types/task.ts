@@ -59,7 +59,7 @@ export interface TaskAttachment {
   size: number
 }
 
-export type ApplicationStatus = 'PENDING' | 'SELECTED' | 'REJECTED' | 'CANCELLED'
+export type ApplicationStatus = 'REVIEWING' | 'AWARDED' | 'REJECTED' | 'CANCELLED'
 
 export interface TaskApplication {
   id: number

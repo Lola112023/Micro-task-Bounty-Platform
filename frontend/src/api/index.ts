@@ -8,21 +8,29 @@ const request = axios.create({
 
 // 请求拦截器：附加 Token
 request.interceptors.request.use((config) => {
-  // mock token 直接放行，不加 Authorization
-  const token = localStorage.getItem('token')
-  if (token && !token.startsWith('mock-')) {
-    config.headers.Authorization = `Bearer ${token}`
-  }
+  // admin token 优先级更高（管理端请求）
   const adminToken = localStorage.getItem('adminToken')
-  if (adminToken && !adminToken.startsWith('mock-')) {
+  if (adminToken) {
     config.headers.Authorization = `Bearer ${adminToken}`
+  } else {
+    const token = localStorage.getItem('token')
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
   }
   return config
 })
 
-// 响应拦截器：统一错误处理
+// 响应拦截器：统一错误处理，并解包 ApiResponse
 request.interceptors.response.use(
-  (response) => response.data,
+  (response) => {
+    const body = response.data
+    // 后端返回 { code, message, data } 格式
+    if (body && typeof body.code === 'number') {
+      return body.data !== undefined ? body.data : body
+    }
+    return body
+  },
   (error) => {
     const status = error.response?.status
     const msg = error.response?.data?.message || '请求失败，请稍后重试'
@@ -39,9 +47,8 @@ request.interceptors.response.use(
       return Promise.reject(error)
     }
 
-    // 开发阶段后端未就绪时，静默处理网络错误，不弹全局提示
     if (!error.response) {
-      console.warn('[API] 网络请求失败（后端未就绪）:', error.config?.url)
+      console.warn('[API] 网络请求失败:', error.config?.url)
       return Promise.reject(error)
     }
 

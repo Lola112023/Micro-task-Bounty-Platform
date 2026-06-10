@@ -18,8 +18,14 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "student_no", unique = true, nullable = false, length = 50)
+    @Column(name = "student_no", length = 50)
     private String studentNo;
+
+    @Column(name = "username", unique = true, nullable = false, length = 50)
+    private String username;
+
+    @Column(name = "password_hash", nullable = false, length = 255)
+    private String passwordHash;
 
     @Column(name = "real_name", nullable = false, length = 50)
     private String realName;
@@ -173,6 +179,22 @@ public class User {
 
     public void setStudentNo(String studentNo) {
         this.studentNo = studentNo;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    public String getPasswordHash() {
+        return passwordHash;
+    }
+
+    public void setPasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
     }
 
     public String getRealName() {

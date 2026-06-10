@@ -52,8 +52,8 @@ export const TASK_STATUS_TYPE: Record<string, string> = {
 }
 
 export const APPLICATION_STATUS_LABEL: Record<string, string> = {
-  PENDING: '审核中',
-  SELECTED: '已中标',
+  REVIEWING: '审核中',
+  AWARDED: '已中标',
   REJECTED: '已落选',
   CANCELLED: '已取消',
 }

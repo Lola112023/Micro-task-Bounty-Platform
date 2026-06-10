@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 
 public class UserInfoDTO {
     private Long id;
+    private String username;
     private String studentNo;
     private String realName;
     private String nickname;
@@ -23,6 +24,8 @@ public class UserInfoDTO {
 
     public Long getId() { return id; }
     public void setId(Long v) { this.id = v; }
+    public String getUsername() { return username; }
+    public void setUsername(String v) { this.username = v; }
     public String getStudentNo() { return studentNo; }
     public void setStudentNo(String v) { this.studentNo = v; }
     public String getRealName() { return realName; }

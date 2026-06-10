@@ -2,22 +2,23 @@ package com.firstteam.taskbountyplatform.auth.service;
 
 import com.firstteam.taskbountyplatform.auth.dto.LoginRequest;
 import com.firstteam.taskbountyplatform.auth.dto.LoginResponse;
+import com.firstteam.taskbountyplatform.auth.dto.RegisterRequest;
 import com.firstteam.taskbountyplatform.auth.dto.UserInfoDTO;
 import com.firstteam.taskbountyplatform.auth.security.JwtUtils;
 import com.firstteam.taskbountyplatform.auth.security.UserContext;
 import com.firstteam.taskbountyplatform.common.enums.AccountRole;
 import com.firstteam.taskbountyplatform.common.enums.UserStatus;
+import com.firstteam.taskbountyplatform.common.exception.BusinessException;
 import com.firstteam.taskbountyplatform.config.PlatformConfig;
 import com.firstteam.taskbountyplatform.point.entity.PointAccount;
 import com.firstteam.taskbountyplatform.point.repository.PointAccountRepository;
 import com.firstteam.taskbountyplatform.user.entity.User;
 import com.firstteam.taskbountyplatform.user.repository.UserRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.security.SecureRandom;
 import java.time.LocalDateTime;
-import java.util.Optional;
 
 @Service
 public class AuthService {
@@ -27,62 +28,44 @@ public class AuthService {
     private final JwtUtils jwtUtils;
     private final UserContext userContext;
     private final PlatformConfig platformConfig;
+    private final PasswordEncoder passwordEncoder;
 
     public AuthService(UserRepository userRepository, PointAccountRepository pointAccountRepository,
-                       JwtUtils jwtUtils, UserContext userContext, PlatformConfig platformConfig) {
+                       JwtUtils jwtUtils, UserContext userContext, PlatformConfig platformConfig,
+                       PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.pointAccountRepository = pointAccountRepository;
         this.jwtUtils = jwtUtils;
         this.userContext = userContext;
         this.platformConfig = platformConfig;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Transactional
     public LoginResponse login(LoginRequest request) {
-        String studentNo = request.getStudentNo();
-        // Simulated OAuth2: auto-create user on first login
-        Optional<User> existingUser = userRepository.findByStudentNo(studentNo);
-        User user;
-        if (existingUser.isPresent()) {
-            user = existingUser.get();
-            // Check if account is frozen
-            if (user.getAccountStatus() == UserStatus.FROZEN) {
-                throw new RuntimeException("账户已被冻结，无法登录");
-            }
-            user.setLastLoginTime(LocalDateTime.now());
-            userRepository.save(user);
-        } else {
-            // Create new user with defaults
-            user = new User();
-            user.setStudentNo(studentNo);
-            user.setRealName("用户" + studentNo); // placeholder
-            user.setNickname(generateUniqueNickname());
-            user.setAvatarUrl("/avatars/default.png");
-            user.setGrade("空");
-            user.setCollege("空");
-            user.setAcademy("空");
-            user.setCreditScore(platformConfig.getCredit().getInitialScore());
-            user.setAccountStatus(UserStatus.NORMAL);
-            user.setRole(AccountRole.USER);
-            user.setCreatedAt(LocalDateTime.now());
-            user.setLastLoginTime(LocalDateTime.now());
-            user = userRepository.save(user);
+        User user = userRepository.findByUsername(request.getUsername())
+                .orElseThrow(() -> new BusinessException("用户名或密码错误"));
 
-            // Create point account with initial points
-            PointAccount account = new PointAccount();
-            account.setUserId(user.getId());
-            account.setAvailablePoints(platformConfig.getInitialPoints());
-            account.setFrozenPoints(0);
-            account.setTotalIncome(0);
-            account.setTotalExpense(0);
-            pointAccountRepository.save(account);
+        if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
+            throw new BusinessException("用户名或密码错误");
         }
 
-        // Fetch point account to populate DTO fields
+        if (user.getAccountStatus() == UserStatus.FROZEN) {
+            if (user.getFrozenUntil() != null && user.getFrozenUntil().isAfter(LocalDateTime.now())) {
+                throw new BusinessException("账户已被冻结，解冻时间：" + user.getFrozenUntil());
+            }
+            user.setAccountStatus(UserStatus.NORMAL);
+            user.setFrozenUntil(null);
+            user.setFreezeReason(null);
+        }
+
+        user.setLastLoginTime(LocalDateTime.now());
+        userRepository.save(user);
+
         PointAccount pointAccount = pointAccountRepository.findByUserId(user.getId())
                 .orElse(new PointAccount(user.getId(), 0, 0, 0, 0, null));
 
-        String token = jwtUtils.generateToken(user.getId(), user.getStudentNo(), user.getRole().name());
+        String token = jwtUtils.generateToken(user.getId(), user.getUsername(), user.getRole().name());
         LoginResponse response = new LoginResponse();
         response.setToken(token);
         UserInfoDTO userInfo = toUserInfoDTO(user);
@@ -90,6 +73,63 @@ public class AuthService {
         userInfo.setFrozenPoints(pointAccount.getFrozenPoints());
         userInfo.setTotalIncome(pointAccount.getTotalIncome());
         userInfo.setTotalExpense(pointAccount.getTotalExpense());
+        response.setUser(userInfo);
+        return response;
+    }
+
+    @Transactional
+    public LoginResponse register(RegisterRequest request) {
+        if (!request.getPassword().equals(request.getConfirmPassword())) {
+            throw new BusinessException("两次密码输入不一致");
+        }
+
+        if (userRepository.existsByUsername(request.getUsername())) {
+            throw new BusinessException("该用户名已被注册");
+        }
+
+        if (userRepository.existsByStudentNo(request.getStudentNo())) {
+            throw new BusinessException("该学号/工号已被注册，请勿重复注册");
+        }
+
+        if (userRepository.existsByNickname(request.getNickname())) {
+            throw new BusinessException("该昵称已被使用");
+        }
+
+        User user = new User();
+        user.setUsername(request.getUsername());
+        user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        user.setStudentNo(request.getStudentNo());
+        user.setNickname(request.getNickname());
+        user.setRealName(request.getRealName());
+        user.setAvatarUrl("/avatars/default.png");
+        user.setGrade(request.getGrade() != null ? request.getGrade() : "");
+        user.setCollege(request.getCollege() != null ? request.getCollege() : "");
+        user.setAcademy(request.getAcademy() != null ? request.getAcademy() : "");
+        user.setCreditScore(platformConfig.getCredit().getInitialScore());
+        user.setAccountStatus(UserStatus.NORMAL);
+        user.setRole(AccountRole.USER);
+        user.setCreatedAt(LocalDateTime.now());
+        user.setLastLoginTime(LocalDateTime.now());
+        user = userRepository.save(user);
+
+        PointAccount account = new PointAccount();
+        account.setUserId(user.getId());
+        account.setAvailablePoints(platformConfig.getInitialPoints());
+        account.setFrozenPoints(0);
+        account.setTotalIncome(0);
+        account.setTotalExpense(0);
+        pointAccountRepository.save(account);
+
+        String token = jwtUtils.generateToken(user.getId(), user.getUsername(), user.getRole().name());
+        LoginResponse response = new LoginResponse();
+        response.setToken(token);
+        UserInfoDTO userInfo = toUserInfoDTO(user);
+        PointAccount saved = pointAccountRepository.findByUserId(user.getId())
+                .orElse(new PointAccount(user.getId(), 0, 0, 0, 0, null));
+        userInfo.setAvailablePoints(saved.getAvailablePoints());
+        userInfo.setFrozenPoints(saved.getFrozenPoints());
+        userInfo.setTotalIncome(saved.getTotalIncome());
+        userInfo.setTotalExpense(saved.getTotalExpense());
         response.setUser(userInfo);
         return response;
     }
@@ -108,31 +148,18 @@ public class AuthService {
         return dto;
     }
 
-    private String generateUniqueNickname() {
-        String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-        SecureRandom random = new SecureRandom();
-        String nickname;
-        do {
-            StringBuilder sb = new StringBuilder("用户");
-            for (int i = 0; i < 8; i++) {
-                sb.append(chars.charAt(random.nextInt(chars.length())));
-            }
-            nickname = sb.toString();
-        } while (userRepository.existsByNickname(nickname));
-        return nickname;
-    }
-
     private UserInfoDTO toUserInfoDTO(User user) {
         UserInfoDTO dto = new UserInfoDTO();
         dto.setId(user.getId());
+        dto.setUsername(user.getUsername());
         dto.setStudentNo(user.getStudentNo());
         dto.setRealName(user.getRealName());
         dto.setNickname(user.getNickname());
         dto.setAvatarUrl(user.getAvatarUrl());
         dto.setAnnouncement(user.getAnnouncement() != null ? user.getAnnouncement() : "");
-        dto.setGrade(user.getGrade() != null ? user.getGrade() : "空");
-        dto.setCollege(user.getCollege() != null ? user.getCollege() : "空");
-        dto.setAcademy(user.getAcademy() != null ? user.getAcademy() : "空");
+        dto.setGrade(user.getGrade() != null ? user.getGrade() : "");
+        dto.setCollege(user.getCollege() != null ? user.getCollege() : "");
+        dto.setAcademy(user.getAcademy() != null ? user.getAcademy() : "");
         dto.setCreditScore(user.getCreditScore());
         dto.setAccountStatus(user.getAccountStatus().name());
         dto.setRole(user.getRole().name());

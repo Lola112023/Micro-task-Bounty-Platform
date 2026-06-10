@@ -1,20 +1,23 @@
 export interface UserInfo {
   id: number
-  studentId: string       // 学号/工号
-  name: string            // 姓名（学校系统绑定）
-  nickname: string        // 昵称
-  avatarUrl: string       // 头像URL
-  grade: string | null    // 年级（可能为空）
-  college: string | null  // 学院（可能为空）
-  academy: string | null  // 书院（可能为空）
-  creditScore: number     // 信用分
-  completionRate: number | null  // 完成率（无承接任务时null）
-  points: number          // 当前积分余额
-  totalIncome: number     // 累计收入
-  totalExpense: number    // 累计支出
-  announcement: string | null   // 公告栏
-  accountStatus: 'normal' | 'frozen'  // 账户状态
-  viewMode: 'publisher' | 'taker'     // 视角模式（本地持久化）
+  username: string
+  studentNo?: string
+  name?: string
+  realName?: string
+  nickname: string
+  avatarUrl: string
+  grade: string | null
+  college: string | null
+  academy: string | null
+  creditScore: number
+  completionRate: number | null
+  points: number
+  availablePoints?: number
+  totalIncome: number
+  totalExpense: number
+  announcement: string | null
+  accountStatus: 'normal' | 'frozen'
+  viewMode: 'publisher' | 'taker'
 }
 
 export interface AdminInfo {

@@ -15,7 +15,8 @@ const TYPE_MAP: Record<string, string> = {
   CANCELLED: 'danger',
   APPEALING: 'warning',
   PENDING: '',
-  SELECTED: 'success',
+  REVIEWING: '',
+  AWARDED: 'success',
   REJECTED: 'info',
 }
 

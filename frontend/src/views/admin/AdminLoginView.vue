@@ -2,7 +2,7 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-// import { adminLogin } from '@/api/auth' // 正式上线时取消注释
+import { adminLogin } from '@/api/auth'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 
@@ -21,22 +21,13 @@ async function handleLogin() {
   await formRef.value?.validate()
   loading.value = true
   try {
-    // ── Mock 管理员登录（后端对接前使用） ──
-    await new Promise((r) => setTimeout(r, 400))
-    if (form.username === 'admin' && form.password === 'admin123') {
-      auth.setAdminToken('mock-admin-token-dev')
-      auth.setAdmin({ id: 1, username: 'admin', role: 'admin' })
-      ElMessage.success('登录成功（开发模式）')
-      router.push('/admin/dashboard')
-    } else {
-      ElMessage.error('账号或密码错误（开发模式账号：admin / admin123）')
-    }
-    // ── 正式上线时替换为: ──
-    // const res = await adminLogin(form.username, form.password)
-    // auth.setAdminToken(res.token)
-    // auth.setAdmin(res.admin)
-    // ElMessage.success('登录成功')
-    // router.push('/admin/dashboard')
+    const res = await adminLogin(form.username, form.password)
+    auth.setAdminToken(res.token)
+    auth.setAdmin(res.admin)
+    ElMessage.success('登录成功')
+    router.push('/admin/dashboard')
+  } catch {
+    // error handled by interceptor
   } finally {
     loading.value = false
   }
@@ -49,7 +40,7 @@ async function handleLogin() {
       <div class="admin-login-header">
         <div class="admin-logo-icon">管</div>
         <div class="admin-login-title">后台管理系统</div>
-        <div class="admin-login-subtitle">北京理工大学校园任务悬赏平台</div>
+        <div class="admin-login-subtitle">校园任务悬赏平台</div>
       </div>
 
       <el-form ref="formRef" :model="form" :rules="rules" label-position="top" size="large">
@@ -68,7 +59,7 @@ async function handleLogin() {
       </el-form>
 
       <el-alert type="warning" :closable="false" style="margin-bottom: 16px">
-        ⚠️ 仅授权管理员可登录（校方指定1-3名教师或学生助理）
+        仅授权管理员可登录
       </el-alert>
 
       <el-button type="primary" size="large" :loading="loading" style="width: 100%" @click="handleLogin">
@@ -77,14 +68,14 @@ async function handleLogin() {
 
       <el-alert type="info" :closable="false" style="margin-top: 16px">
         <div style="font-size: 13px; line-height: 1.8; color: #595959">
-          <div>• 所有操作将被记录日志（操作人、时间、IP、内容）</div>
-          <div>• 管理员不可使用用户端功能</div>
-          <div>• 日志永久保存，不可删除</div>
+          <div>所有操作将被记录日志（操作人、时间、IP、内容）</div>
+          <div>管理员不可使用用户端功能</div>
+          <div>日志永久保存，不可删除</div>
         </div>
       </el-alert>
 
       <div style="text-align: center; margin-top: 16px">
-        <el-button link @click="router.push('/login')">← 返回用户登录</el-button>
+        <el-button link @click="router.push('/login')">返回用户登录</el-button>
       </div>
     </div>
   </div>

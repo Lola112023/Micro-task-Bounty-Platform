@@ -3,24 +3,20 @@ package com.firstteam.taskbountyplatform.common.response;
 import java.util.List;
 
 public class PageResult<T> {
-    private List<T> content;
+    private List<T> list;
     private int page;
-    private int size;
-    private long totalElements;
-    private int totalPages;
+    private int pageSize;
+    private long total;
 
-    public PageResult(List<T> content, int page, int size, long totalElements) {
-        this.content = content;
+    public PageResult(List<T> list, int page, int pageSize, long total) {
+        this.list = list;
         this.page = page;
-        this.size = size;
-        this.totalElements = totalElements;
-        this.totalPages = size > 0 ? (int) Math.ceil((double) totalElements / size) : 0;
+        this.pageSize = pageSize;
+        this.total = total;
     }
 
-    // getters
-    public List<T> getContent() { return content; }
+    public List<T> getList() { return list; }
     public int getPage() { return page; }
-    public int getSize() { return size; }
-    public long getTotalElements() { return totalElements; }
-    public int getTotalPages() { return totalPages; }
+    public int getPageSize() { return pageSize; }
+    public long getTotal() { return total; }
 }

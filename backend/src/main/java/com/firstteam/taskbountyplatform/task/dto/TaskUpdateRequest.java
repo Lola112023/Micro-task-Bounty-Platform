@@ -1,11 +1,17 @@
 package com.firstteam.taskbountyplatform.task.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 public class TaskUpdateRequest {
     private String title;
     private String description;
     private Long categoryId;
     private String campus;
+
+    @JsonProperty("durationMinutes")
     private Integer deadlineMinutes;
+
+    @JsonProperty("reward")
     private Integer rewardPoints;
 
     public String getTitle() {

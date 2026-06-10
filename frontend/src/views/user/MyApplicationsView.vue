@@ -16,8 +16,8 @@ const pageSize = 15
 
 const statusOptions = [
   { label: '全部', value: '' },
-  { label: '审核中', value: 'PENDING' },
-  { label: '已中标', value: 'SELECTED' },
+  { label: '审核中', value: 'REVIEWING' },
+  { label: '已中标', value: 'AWARDED' },
   { label: '已落选', value: 'REJECTED' },
   { label: '已取消', value: 'CANCELLED' },
 ]

@@ -14,7 +14,9 @@ import type { NotificationSettings } from '@/types/notification'
 // ── 当前登录用户 ─────────────────────────────────────────────────────────────
 export const MOCK_USER: UserInfo = {
   id: 1,
-  studentId: '1120200001',
+  username: 'testuser',
+  studentNo: '1120200001',
+  realName: '测试用户',
   name: '测试用户',
   nickname: 'TestUser',
   avatarUrl: '',

@@ -17,13 +17,21 @@ function warn(fn: string) {
 
 /** 获取任务分类列表 */
 export async function getCategories(): Promise<TaskCategory[]> {
-  try { return await request.get('/categories') }
+  try { return await request.get('/public/categories') }
   catch { warn('getCategories'); return MOCK_CATEGORIES }
 }
 
 /** 获取任务列表（任务大厅） */
 export async function getTasks(params: TaskListParams): Promise<PageResult<TaskListItem>> {
-  try { return await request.get('/tasks', { params }) }
+  try {
+    const { categoryIds, pageSize, publishedAfter, sortBy, ...rest } = params
+    const mapped: Record<string, unknown> = { ...rest }
+    if (categoryIds?.length) mapped.categoryId = categoryIds
+    if (pageSize) mapped.size = pageSize
+    if (publishedAfter) mapped.startDate = publishedAfter
+    if (sortBy) mapped.sortBy = sortBy === 'remainingTime' ? 'time' : sortBy
+    return await request.get('/tasks', { params: mapped })
+  }
   catch {
     warn('getTasks')
     return { total: MOCK_TASK_LIST.length, page: 1, pageSize: 12, list: MOCK_TASK_LIST }
@@ -70,7 +78,7 @@ export async function getTaskApplications(taskId: number): Promise<TaskApplicati
 
 /** 选择中标者 */
 export async function selectWinner(taskId: number, applicationId: number): Promise<void> {
-  return request.post(`/tasks/${taskId}/select`, { applicationId })
+  return request.post(`/tasks/${taskId}/applications/${applicationId}/award`)
 }
 
 /** 提交交付物 */
@@ -105,7 +113,7 @@ export async function handleCancelRequest(taskId: number, agree: boolean): Promi
 
 /** 延长截止时间 */
 export async function extendDeadline(taskId: number): Promise<void> {
-  return request.post(`/tasks/${taskId}/extend`)
+  return request.put(`/tasks/${taskId}/extend`)
 }
 
 /** 发起申诉 */
@@ -140,7 +148,10 @@ export async function sendMessage(taskId: number, content: string): Promise<Task
 export async function getMyPublishedTasks(params: {
   status?: string; page?: number; pageSize?: number
 }): Promise<PageResult<TaskListItem>> {
-  try { return await request.get('/tasks/my/published', { params }) }
+  try {
+    const { pageSize, ...rest } = params
+    return await request.get('/my/tasks', { params: { ...rest, size: pageSize || 10 } })
+  }
   catch { warn('getMyPublishedTasks'); return emptyPage() }
 }
 
@@ -156,7 +167,10 @@ export async function getMyAcceptedTasks(params: {
 export async function getMyApplications(params: {
   status?: string; page?: number; pageSize?: number
 }): Promise<PageResult<TaskApplication>> {
-  try { return await request.get('/applications/my', { params }) }
+  try {
+    const { pageSize, ...rest } = params
+    return await request.get('/my/applications', { params: { ...rest, size: pageSize || 10 } })
+  }
   catch { warn('getMyApplications'); return emptyPage() }
 }
 

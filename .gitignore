@@ -1,0 +1,19 @@
+# Build output
+backend/target/
+backend/src/main/resources/static/
+frontend/dist/
+
+# Dependencies
+frontend/node_modules/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Uploads (runtime data)
+uploads/

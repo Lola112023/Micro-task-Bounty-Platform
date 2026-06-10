@@ -1,12 +1,21 @@
 package com.firstteam.taskbountyplatform.file.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.time.LocalDateTime;
 
 public class FileDTO {
     private Long id;
+
+    @JsonProperty("filename")
     private String originalName;
+
+    @JsonProperty("url")
     private String fileUrl;
+
+    @JsonProperty("size")
     private Long fileSize;
+
     private String contentType;
     private LocalDateTime createdAt;
 
