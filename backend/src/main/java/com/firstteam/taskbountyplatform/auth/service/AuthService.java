@@ -87,7 +87,8 @@ public class AuthService {
             throw new BusinessException("该用户名已被注册");
         }
 
-        if (userRepository.existsByStudentNo(request.getStudentNo())) {
+        if (request.getStudentNo() != null && !request.getStudentNo().isBlank()
+                && userRepository.existsByStudentNo(request.getStudentNo())) {
             throw new BusinessException("该学号/工号已被注册，请勿重复注册");
         }
 
@@ -98,13 +99,12 @@ public class AuthService {
         User user = new User();
         user.setUsername(request.getUsername());
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
-        user.setStudentNo(request.getStudentNo());
+        user.setStudentNo(request.getStudentNo() != null && !request.getStudentNo().isBlank()
+                ? request.getStudentNo() : request.getUsername());
         user.setNickname(request.getNickname());
-        user.setRealName(request.getRealName());
+        user.setRealName(request.getRealName() != null && !request.getRealName().isBlank()
+                ? request.getRealName() : request.getNickname());
         user.setAvatarUrl("/avatars/default.png");
-        user.setGrade(request.getGrade() != null ? request.getGrade() : "");
-        user.setCollege(request.getCollege() != null ? request.getCollege() : "");
-        user.setAcademy(request.getAcademy() != null ? request.getAcademy() : "");
         user.setCreditScore(platformConfig.getCredit().getInitialScore());
         user.setAccountStatus(UserStatus.NORMAL);
         user.setRole(AccountRole.USER);

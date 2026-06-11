@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { getAdminTasks, forceRemoveTask } from '@/api/admin'
+import { getAdminTasks, forceCancelTask } from '@/api/admin'
 import type { AdminTask } from '@/types/admin'
 import { formatDateTime } from '@/utils/format'
 import { ElMessage } from 'element-plus'
@@ -39,7 +39,7 @@ async function confirmRemove() {
     ElMessage.error('请填写下架原因')
     return
   }
-  await forceRemoveTask(removeTarget.value.id, removeReason.value)
+  await forceCancelTask(removeTarget.value.id, removeReason.value)
   ElMessage.success('任务已强制下架')
   removeDialogVisible.value = false
   fetchList()
@@ -85,7 +85,7 @@ onMounted(fetchList)
         <el-table-column prop="stayDuration" label="停留时长" width="100" />
         <el-table-column label="操作" width="180" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" link @click="router.push(`/task/${row.id}`)">查看</el-button>
+            <el-button size="small" link @click="router.push(`/admin/tasks/${row.id}`)">查看</el-button>
             <el-button size="small" link type="danger"
               @click="() => { removeTarget = row; removeReason = ''; removeDialogVisible = true }">
               强制下架

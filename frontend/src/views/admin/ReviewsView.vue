@@ -3,8 +3,8 @@ import { ref, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import {
   getReviewList, approveReview, rejectReview,
-  getReportList, verifyReport, rejectReport,
-  getAppealList, judgeAppealComplete, judgeAppealCancel, judgeAppealContinue
+  getReportList, verifyReport, rejectReport, rejectReportWithPenalty,
+  getAppealList, processAppeal
 } from '@/api/admin'
 import type { AdminReviewItem, AdminReportItem, AdminAppealItem } from '@/types/admin'
 import { formatDateTime } from '@/utils/format'
@@ -109,9 +109,8 @@ async function handleRejectReport(item: AdminReportItem) {
 // ── 申诉操作 ──────────────────────────────────────────────────────────────────
 async function confirmJudge() {
   if (!judgeTarget.value || !judgeOpinion.value.trim()) { ElMessage.error('请填写处理意见'); return }
-  if (judgeType.value === 'complete') await judgeAppealComplete(judgeTarget.value.id, judgeOpinion.value)
-  if (judgeType.value === 'cancel') await judgeAppealCancel(judgeTarget.value.id, judgeOpinion.value)
-  if (judgeType.value === 'continue') await judgeAppealContinue(judgeTarget.value.id, judgeOpinion.value)
+  const decision = judgeType.value === 'complete' ? 'COMPLETED' : judgeType.value === 'cancel' ? 'CANCELLED' : 'IN_PROGRESS'
+  await processAppeal(judgeTarget.value.id, decision, judgeOpinion.value)
   ElMessage.success('申诉已裁定')
   judgeDialogVisible.value = false
   loadAppeals()
@@ -139,14 +138,14 @@ watch(() => route.query.tab, (v) => { if (v) { activeTab.value = v as string; ha
           <el-table-column prop="applicantNickname" label="申请人" width="120" />
           <el-table-column label="申请类型" width="100">
             <template #default="{ row }">
-              <el-tag size="small">{{ ({'avatar':'头像', 'nickname':'昵称', 'announcement':'公告栏'} as Record<string,string>)[row.type as string] }}</el-tag>
+              <el-tag size="small">{{ ({'AVATAR':'头像', 'NICKNAME':'昵称', 'ANNOUNCEMENT':'公告栏'} as Record<string,string>)[row.auditType as string] || row.auditType }}</el-tag>
             </template>
           </el-table-column>
           <el-table-column label="申请内容" min-width="200">
             <template #default="{ row }">
-              <img v-if="row.type === 'avatar'" :src="row.content"
+              <img v-if="row.auditType === 'AVATAR'" :src="row.newValue"
                 style="width:40px;height:40px;border-radius:50%;object-fit:cover" />
-              <span v-else>{{ row.content }}</span>
+              <span v-else>{{ row.newValue }}</span>
             </template>
           </el-table-column>
           <el-table-column label="申请时间" width="155">
@@ -154,18 +153,19 @@ watch(() => route.query.tab, (v) => { if (v) { activeTab.value = v as string; ha
           </el-table-column>
           <el-table-column label="状态" width="110">
             <template #default="{ row }">
-              <el-tag :type="row.status === 'timeout' ? 'danger' : 'warning'" size="small">
-                {{ row.status === 'timeout' ? '超时自动拒绝' : '待审核' }}
+              <el-tag :type="row.status === 'TIMEOUT_REJECTED' ? 'danger' : row.status === 'APPROVED' ? 'success' : row.status === 'REJECTED' ? 'info' : 'warning'" size="small">
+                {{ ({'PENDING':'待审核', 'APPROVED':'已通过', 'REJECTED':'已拒绝', 'TIMEOUT_REJECTED':'超时拒绝'} as Record<string,string>)[row.status as string] || row.status }}
               </el-tag>
             </template>
           </el-table-column>
           <el-table-column label="操作" width="140" fixed="right">
             <template #default="{ row }">
-              <el-button size="small" link type="success" @click="handleApprove(row)">✓ 通过</el-button>
-              <el-button size="small" link type="danger"
+              <el-button v-if="row.status === 'PENDING'" size="small" link type="success" @click="handleApprove(row)">✓ 通过</el-button>
+              <el-button v-if="row.status === 'PENDING'" size="small" link type="danger"
                 @click="() => { rejectTarget = row; rejectReason = ''; rejectDialogVisible = true }">
                 ✗ 拒绝
               </el-button>
+              <span v-if="row.status !== 'PENDING'" style="color:#8c8c8c;font-size:12px">{{ row.rejectReason || '已处理' }}</span>
             </template>
           </el-table-column>
         </el-table>
@@ -178,28 +178,34 @@ watch(() => route.query.tab, (v) => { if (v) { activeTab.value = v as string; ha
       <!-- 举报处理 -->
       <div v-if="activeTab === 'report'">
         <el-table v-loading="reportLoading" :data="reports" empty-text="暂无举报">
-          <el-table-column prop="taskTitle" label="被举报任务" min-width="160" show-overflow-tooltip />
-          <el-table-column prop="reporterNickname" label="举报人" width="110">
-            <template #default="{ row }">{{ row.reporterNickname || '匿名' }}</template>
-          </el-table-column>
+          <el-table-column prop="targetId" label="被举报对象ID" width="120" />
+          <el-table-column prop="reporterId" label="举报人ID" width="100" />
           <el-table-column label="举报类型" width="90">
             <template #default="{ row }">
               <el-tag size="small" type="danger">
-                {{ ({'porn':'涉黄', 'violence':'涉暴', 'fraud':'诈骗', 'other':'其他'} as Record<string,string>)[row.reportType as string] }}
+                {{ ({'PORN':'涉黄', 'VIOLENCE':'涉暴', 'FRAUD':'诈骗', 'OTHER':'其他'} as Record<string,string>)[row.reportType as string] || row.reportType }}
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="reason" label="举报理由" min-width="160" show-overflow-tooltip />
+          <el-table-column prop="evidence" label="证据/描述" min-width="160" show-overflow-tooltip />
           <el-table-column label="举报时间" width="155">
-            <template #default="{ row }">{{ formatDateTime(row.reportedAt) }}</template>
+            <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
+          </el-table-column>
+          <el-table-column label="状态" width="80">
+            <template #default="{ row }">
+              <el-tag :type="row.status === 'APPROVED' ? 'success' : row.status === 'REJECTED' ? 'info' : 'warning'" size="small">
+                {{ ({'PENDING':'待处理','APPROVED':'已核实','REJECTED':'已驳回'} as Record<string,string>)[row.status as string] || row.status }}
+              </el-tag>
+            </template>
           </el-table-column>
           <el-table-column label="操作" width="150" fixed="right">
             <template #default="{ row }">
-              <el-button size="small" link type="danger"
+              <el-button v-if="row.status === 'PENDING'" size="small" link type="danger"
                 @click="() => { verifyTarget = row; verifyFreezeDays = 5; verifyCreditDeduct = 5; verifyDialogVisible = true }">
                 核实
               </el-button>
-              <el-button size="small" link @click="handleRejectReport(row)">驳回</el-button>
+              <el-button v-if="row.status === 'PENDING'" size="small" link @click="handleRejectReport(row)">驳回</el-button>
+              <span v-if="row.status !== 'PENDING'" style="color:#8c8c8c;font-size:12px">{{ row.adminNote || '已处理' }}</span>
             </template>
           </el-table-column>
         </el-table>
@@ -213,31 +219,42 @@ watch(() => route.query.tab, (v) => { if (v) { activeTab.value = v as string; ha
       <div v-if="activeTab === 'appeal'">
         <el-table v-loading="appealLoading" :data="appeals" empty-text="暂无申诉">
           <el-table-column prop="taskId" label="任务ID" width="80" />
-          <el-table-column prop="taskTitle" label="任务名称" min-width="140" show-overflow-tooltip />
-          <el-table-column label="申诉方" width="110">
-            <template #default="{ row }">{{ row.appellantNickname }}</template>
-          </el-table-column>
-          <el-table-column label="对方" width="110">
-            <template #default="{ row }">{{ row.respondentNickname }}</template>
+          <el-table-column label="申诉方ID" width="100">
+            <template #default="{ row }">{{ row.appealerId }}</template>
           </el-table-column>
           <el-table-column prop="reason" label="申诉理由" min-width="160" show-overflow-tooltip />
           <el-table-column label="提交时间" width="155">
-            <template #default="{ row }">{{ formatDateTime(row.submittedAt) }}</template>
+            <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
+          </el-table-column>
+          <el-table-column label="状态" width="90">
+            <template #default="{ row }">
+              <el-tag :type="row.status === 'RESOLVED' ? 'success' : 'warning'" size="small">
+                {{ row.status === 'PENDING' ? '待处理' : row.status === 'RESOLVED' ? '已裁决' : row.status }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="裁决结果" width="100">
+            <template #default="{ row }">
+              {{ row.adminDecision ? ({'COMPLETED':'判定完成','CANCELLED':'判定取消','IN_PROGRESS':'继续执行'} as Record<string,string>)[row.adminDecision] || row.adminDecision : '-' }}
+            </template>
           </el-table-column>
           <el-table-column label="操作" width="200" fixed="right">
             <template #default="{ row }">
-              <el-button size="small" link type="success"
-                @click="() => { judgeTarget=row; judgeType='complete'; judgeOpinion=''; judgeDialogVisible=true }">
-                判定完成
-              </el-button>
-              <el-button size="small" link type="danger"
-                @click="() => { judgeTarget=row; judgeType='cancel'; judgeOpinion=''; judgeDialogVisible=true }">
-                判定取消
-              </el-button>
-              <el-button size="small" link
-                @click="() => { judgeTarget=row; judgeType='continue'; judgeOpinion=''; judgeDialogVisible=true }">
-                继续执行
-              </el-button>
+              <template v-if="row.status === 'PENDING'">
+                <el-button size="small" link type="success"
+                  @click="() => { judgeTarget=row; judgeType='complete'; judgeOpinion=''; judgeDialogVisible=true }">
+                  判定完成
+                </el-button>
+                <el-button size="small" link type="danger"
+                  @click="() => { judgeTarget=row; judgeType='cancel'; judgeOpinion=''; judgeDialogVisible=true }">
+                  判定取消
+                </el-button>
+                <el-button size="small" link
+                  @click="() => { judgeTarget=row; judgeType='continue'; judgeOpinion=''; judgeDialogVisible=true }">
+                  继续执行
+                </el-button>
+              </template>
+              <span v-else style="color:#8c8c8c;font-size:12px">{{ row.adminNote || '已处理' }}</span>
             </template>
           </el-table-column>
         </el-table>

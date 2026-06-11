@@ -110,7 +110,7 @@ public class AdminService {
         LocalDateTime midnight = LocalDateTime.of(LocalDate.now(), LocalTime.MIDNIGHT);
         dto.setNewUsersToday(userRepository.countNewUsersSince(midnight));
         // Online users: those with lastLoginTime within last 15 minutes
-        dto.setOnlineUsers(0); // estimated, requires real-time tracking
+        dto.setOnlineUsers((int) userRepository.countActiveUsersSince(LocalDateTime.now().minusMinutes(15)));
 
         // Task stats
         dto.setTotalTasks(taskRepository.count());
@@ -203,7 +203,8 @@ public class AdminService {
         }
 
         user.setAccountStatus(UserStatus.FROZEN);
-        user.setFrozenUntil(LocalDateTime.now().plusDays(request.getFreezeDays()));
+        int days = request.getFreezeDays() != null ? request.getFreezeDays() : 7;
+        user.setFrozenUntil(LocalDateTime.now().plusDays(days));
         user.setFreezeReason(request.getReason());
         userRepository.save(user);
 
@@ -352,43 +353,40 @@ public class AdminService {
 
     // ==================== Task Management ====================
 
-    public PageResult<Task> listAllTasks(String status, String keyword, Pageable pageable) {
+    public PageResult<AdminTaskDTO> listAllTasks(String status, String keyword, Pageable pageable) {
         Page<Task> taskPage;
         if (status != null && !status.isEmpty() && keyword != null && !keyword.isEmpty()) {
+            TaskStatus taskStatus = TaskStatus.fromName(status);
+            String kw = "%" + keyword + "%";
             taskPage = taskRepository.findAll(
-                    (root, query, cb) -> {
-                        var predicates = new ArrayList<jakarta.persistence.criteria.Predicate>();
-                        try {
-                            TaskStatus taskStatus = TaskStatus.valueOf(status.toUpperCase());
-                            predicates.add(cb.equal(root.get("status"), taskStatus));
-                        } catch (IllegalArgumentException ignored) {
-                        }
-                        predicates.add(cb.or(
-                                cb.like(root.get("title"), "%" + keyword + "%"),
-                                cb.like(root.get("description"), "%" + keyword + "%")
-                        ));
-                        return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
-                    }, pageable);
+                    (root, query, cb) -> cb.and(
+                            cb.equal(root.get("status"), taskStatus),
+                            cb.or(
+                                    cb.like(root.get("title"), kw),
+                                    cb.like(root.get("description"), kw)
+                            )),
+                    pageable);
         } else if (status != null && !status.isEmpty()) {
-            try {
-                TaskStatus taskStatus = TaskStatus.valueOf(status.toUpperCase());
-                taskPage = taskRepository.findAll(
-                        (root, query, cb) -> cb.equal(root.get("status"), taskStatus),
-                        pageable);
-            } catch (IllegalArgumentException e) {
-                taskPage = taskRepository.findAll(pageable);
-            }
+            TaskStatus taskStatus = TaskStatus.fromName(status);
+            taskPage = taskRepository.findAll(
+                    (root, query, cb) -> cb.equal(root.get("status"), taskStatus),
+                    pageable);
         } else if (keyword != null && !keyword.isEmpty()) {
+            String kw = "%" + keyword + "%";
             taskPage = taskRepository.findAll(
                     (root, query, cb) -> cb.or(
-                            cb.like(root.get("title"), "%" + keyword + "%"),
-                            cb.like(root.get("description"), "%" + keyword + "%")
+                            cb.like(root.get("title"), kw),
+                            cb.like(root.get("description"), kw)
                     ), pageable);
         } else {
             taskPage = taskRepository.findAll(pageable);
         }
 
-        return new PageResult<>(taskPage.getContent(), taskPage.getNumber(), taskPage.getSize(), taskPage.getTotalElements());
+        List<AdminTaskDTO> dtos = taskPage.getContent().stream()
+                .map(this::toAdminTaskDTO)
+                .collect(Collectors.toList());
+
+        return new PageResult<>(dtos, taskPage.getNumber(), taskPage.getSize(), taskPage.getTotalElements());
     }
 
     @Transactional
@@ -488,7 +486,12 @@ public class AdminService {
         final com.firstteam.taskbountyplatform.common.enums.ReviewAuditStatus finalAuditStatus = auditStatus;
 
         if (type != null && !type.isEmpty()) {
-            auditPage = reviewAuditRepository.findByAuditType(type, pageable);
+            try {
+                AuditItemType auditItemType = AuditItemType.valueOf(type.toUpperCase());
+                auditPage = reviewAuditRepository.findByAuditType(auditItemType, pageable);
+            } catch (IllegalArgumentException e) {
+                throw new BusinessException("Invalid audit type: " + type);
+            }
         } else if (finalAuditStatus != null) {
             auditPage = reviewAuditRepository.findByStatus(finalAuditStatus, pageable);
         } else {
@@ -724,16 +727,21 @@ public class AdminService {
             return Collections.emptyList();
         }
 
-        switch (targetType.toUpperCase()) {
+        String upper = targetType.trim().toUpperCase();
+        switch (upper) {
             case "ALL":
                 return userRepository.findAll().stream()
                         .map(User::getId)
                         .collect(Collectors.toList());
+            case "PUBLISHER":
             case "PUBLISHERS":
                 return taskRepository.findAll().stream()
                         .map(Task::getPublisherId)
                         .distinct()
                         .collect(Collectors.toList());
+            case "TAKER":
+            case "TAKERS":
+            case "WORKER":
             case "WORKERS":
                 return taskRepository.findAll().stream()
                         .filter(t -> t.getWinnerId() != null)
@@ -1077,6 +1085,45 @@ public class AdminService {
         dto.setRejectReason(audit.getRejectReason());
         dto.setSubmittedAt(audit.getSubmittedAt());
         dto.setProcessedAt(audit.getProcessedAt());
+        return dto;
+    }
+
+    private AdminTaskDTO toAdminTaskDTO(Task task) {
+        AdminTaskDTO dto = new AdminTaskDTO();
+        dto.setId(task.getId());
+        dto.setTitle(task.getTitle());
+        dto.setDescription(task.getDescription());
+        dto.setPublisherId(task.getPublisherId());
+        userRepository.findById(task.getPublisherId()).ifPresent(u -> dto.setPublisherNickname(u.getNickname()));
+        dto.setWinnerId(task.getWinnerId());
+        if (task.getWinnerId() != null) {
+            userRepository.findById(task.getWinnerId()).ifPresent(u -> dto.setWinnerNickname(u.getNickname()));
+        }
+        dto.setCategoryId(task.getCategoryId());
+        dto.setCategoryName(task.getCategoryName());
+        dto.setCampus(task.getCampus() != null ? task.getCampus().name() : null);
+        dto.setRewardPoints(task.getRewardPoints());
+        dto.setDeadlineMinutes(task.getDeadlineMinutes());
+        dto.setStatus(task.getStatus().name());
+        dto.setPublishedAt(task.getPublishedAt());
+        dto.setAwardedAt(task.getAwardedAt());
+        dto.setDeadlineAt(task.getDeadlineAt());
+        dto.setCompletedAt(task.getCompletedAt());
+        dto.setCancelledAt(task.getCancelledAt());
+        dto.setReward(task.getRewardPoints());
+
+        // Compute stayDuration
+        LocalDateTime end = task.getCompletedAt() != null ? task.getCompletedAt()
+                : task.getCancelledAt() != null ? task.getCancelledAt()
+                : LocalDateTime.now();
+        long hours = java.time.Duration.between(task.getPublishedAt(), end).toHours();
+        if (hours < 1) {
+            dto.setStayDuration("<1h");
+        } else if (hours < 24) {
+            dto.setStayDuration(hours + "h");
+        } else {
+            dto.setStayDuration((hours / 24) + "d" + (hours % 24) + "h");
+        }
         return dto;
     }
 

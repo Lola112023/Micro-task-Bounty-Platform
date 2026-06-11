@@ -7,11 +7,6 @@ export function register(data: {
   password: string
   confirmPassword: string
   nickname: string
-  realName: string
-  studentNo: string
-  grade: string
-  college: string
-  academy: string
 }): Promise<LoginResult> {
   return request.post('/auth/register', data)
 }

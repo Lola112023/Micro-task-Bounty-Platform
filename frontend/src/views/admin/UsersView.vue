@@ -94,7 +94,7 @@ onMounted(fetchList)
       </div>
 
       <el-table v-loading="loading" :data="list" style="width:100%" empty-text="暂无用户">
-        <el-table-column prop="studentId" label="学号/工号" width="120" />
+        <el-table-column prop="studentNo" label="学号/工号" width="120" />
         <el-table-column prop="nickname" label="昵称" width="120" />
         <el-table-column label="信用分" width="90">
           <template #default="{ row }">
@@ -105,19 +105,21 @@ onMounted(fetchList)
         </el-table-column>
         <el-table-column label="账户状态" width="100">
           <template #default="{ row }">
-            <el-tag :type="row.accountStatus === 'normal' ? 'success' : 'danger'" size="small">
-              {{ row.accountStatus === 'normal' ? '正常' : '冻结' }}
+            <el-tag :type="row.accountStatus === 'NORMAL' ? 'success' : 'danger'" size="small">
+              {{ row.accountStatus === 'NORMAL' ? '正常' : row.accountStatus === 'FROZEN' ? '冻结' : row.accountStatus }}
             </el-tag>
           </template>
         </el-table-column>
         <el-table-column label="注册时间" width="155">
-          <template #default="{ row }">{{ formatDateTime(row.registeredAt) }}</template>
+          <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
         </el-table-column>
-        <el-table-column prop="lastLoginIp" label="最后登录IP" width="140" />
+        <el-table-column label="最后登录时间" width="155">
+          <template #default="{ row }">{{ row.lastLoginTime ? formatDateTime(row.lastLoginTime) : '-' }}</template>
+        </el-table-column>
         <el-table-column label="操作" width="160" fixed="right">
           <template #default="{ row }">
             <el-button size="small" link @click="router.push(`/admin/users/${row.id}`)">详情</el-button>
-            <el-button v-if="row.accountStatus === 'normal'" size="small" link type="danger"
+            <el-button v-if="row.accountStatus === 'NORMAL'" size="small" link type="danger"
               @click="handleFreeze(row)">冻结</el-button>
             <el-button v-else size="small" link type="success"
               @click="handleUnfreeze(row)">解冻</el-button>

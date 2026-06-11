@@ -22,6 +22,10 @@ async function handleLogin() {
   loading.value = true
   try {
     const res = await adminLogin(form.username, form.password)
+    if (!res || !res.token) {
+      ElMessage.error('登录失败')
+      return
+    }
     auth.setAdminToken(res.token)
     auth.setAdmin(res.admin)
     ElMessage.success('登录成功')

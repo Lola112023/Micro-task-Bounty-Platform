@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { getAdminUserDetail, getUserOperationLog, resetCreditScore } from '@/api/admin'
+import { getAdminUserDetail, getUserAuditLogs, resetCreditScore } from '@/api/admin'
 import type { AdminUser } from '@/types/admin'
 import { formatDateTime, creditScoreColor } from '@/utils/format'
 import { ElMessage } from 'element-plus'
@@ -24,7 +24,7 @@ async function loadUser() {
 }
 
 async function loadLogs() {
-  const res = await getUserOperationLog(Number(props.userId), { page: logPage.value, pageSize: 15 })
+  const res = await getUserAuditLogs(Number(props.userId), { page: logPage.value, pageSize: 15 })
   logs.value = res.list
   logTotal.value = res.total
 }
@@ -52,24 +52,22 @@ onMounted(loadUser)
       <div class="card" style="margin-bottom:16px">
         <div class="card-title">用户基本信息</div>
         <div class="info-grid">
-          <div><span class="label">学号/工号：</span>{{ user.studentId }}</div>
-          <div><span class="label">姓名：</span>{{ user.name }}</div>
+          <div><span class="label">学号/工号：</span>{{ user.studentNo }}</div>
+          <div><span class="label">姓名：</span>{{ user.realName || '-' }}</div>
           <div><span class="label">昵称：</span>{{ user.nickname }}</div>
-          <div><span class="label">年级：</span>{{ user.grade || '-' }}</div>
-          <div><span class="label">学院：</span>{{ user.college || '-' }}</div>
-          <div><span class="label">书院：</span>{{ user.academy || '-' }}</div>
+          <div><span class="label">角色：</span>{{ user.role }}</div>
           <div>
             <span class="label">信用分：</span>
             <strong :style="{ color: creditScoreColor(user.creditScore) }">{{ user.creditScore }}</strong>
           </div>
           <div>
             <span class="label">账户状态：</span>
-            <el-tag :type="user.accountStatus === 'normal' ? 'success' : 'danger'" size="small">
-              {{ user.accountStatus === 'normal' ? '正常' : '冻结' }}
+            <el-tag :type="user.accountStatus === 'NORMAL' ? 'success' : 'danger'" size="small">
+              {{ user.accountStatus === 'NORMAL' ? '正常' : user.accountStatus === 'FROZEN' ? '冻结' : user.accountStatus }}
             </el-tag>
           </div>
-          <div><span class="label">注册时间：</span>{{ formatDateTime(user.registeredAt) }}</div>
-          <div><span class="label">最后登录IP：</span>{{ user.lastLoginIp }}</div>
+          <div><span class="label">注册时间：</span>{{ formatDateTime(user.createdAt) }}</div>
+          <div><span class="label">最后登录：</span>{{ user.lastLoginTime ? formatDateTime(user.lastLoginTime) : '-' }}</div>
         </div>
       </div>
 

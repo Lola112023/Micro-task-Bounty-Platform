@@ -33,6 +33,7 @@ async function handleLogin() {
   loading.value = true
   try {
     const res = await login(loginForm.username, loginForm.password)
+    if (!res || !res.token) { ElMessage.error('登录失败'); return }
     auth.setToken(res.token)
     auth.setUser(res.user)
     ElMessage.success('登录成功')
@@ -49,6 +50,7 @@ async function handleAdminLogin() {
   loading.value = true
   try {
     const res = await adminLogin(adminForm.username, adminForm.password)
+    if (!res || !res.token) { ElMessage.error('登录失败'); loading.value = false; return }
     auth.setAdminToken(res.token)
     auth.setAdmin(res.admin)
     ElMessage.success('登录成功')

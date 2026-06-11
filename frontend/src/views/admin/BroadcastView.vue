@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { sendBroadcast, getBroadcastHistory } from '@/api/admin'
+import { sendBroadcast } from '@/api/admin'
 import { formatDateTime } from '@/utils/format'
 import { ElMessage } from 'element-plus'
 
@@ -35,8 +35,7 @@ async function handleSend() {
 }
 
 async function loadHistory() {
-  const res = await getBroadcastHistory({ page: 1, pageSize: 20 })
-  historyList.value = res.list
+  historyList.value = []
 }
 
 onMounted(loadHistory)

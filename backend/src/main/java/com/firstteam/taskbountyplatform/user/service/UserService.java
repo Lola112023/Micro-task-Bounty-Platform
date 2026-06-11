@@ -208,7 +208,7 @@ public class UserService {
 
         // Check no existing pending avatar audit
         List<ReviewAudit> pendingAudits = reviewAuditRepository
-                .findByApplicantIdAndAuditTypeAndStatus(currentUserId, "AVATAR", ReviewAuditStatus.PENDING);
+                .findByApplicantIdAndAuditTypeAndStatus(currentUserId, AuditItemType.AVATAR, ReviewAuditStatus.PENDING);
         if (!pendingAudits.isEmpty()) {
             throw new RuntimeException("您已有待审核的头像申请，请等待审核完成后再提交新申请");
         }
@@ -419,7 +419,7 @@ public class UserService {
     private void checkNicknameCooldown(Long userId) {
         // Find the most recently approved nickname audit for this user
         List<ReviewAudit> audits = reviewAuditRepository
-                .findByApplicantIdAndAuditTypeAndStatus(userId, "NICKNAME", ReviewAuditStatus.APPROVED);
+                .findByApplicantIdAndAuditTypeAndStatus(userId, AuditItemType.NICKNAME, ReviewAuditStatus.APPROVED);
         if (!audits.isEmpty()) {
             // Sort by processedAt descending
             LocalDateTime lastApprovedAt = audits.stream()
@@ -453,7 +453,7 @@ public class UserService {
 
         // Check pending nickname audits from other users
         List<ReviewAudit> pendingNicknameAudits = reviewAuditRepository
-                .findByApplicantIdAndAuditTypeAndStatus(currentUserId, "NICKNAME", ReviewAuditStatus.PENDING);
+                .findByApplicantIdAndAuditTypeAndStatus(currentUserId, AuditItemType.NICKNAME, ReviewAuditStatus.PENDING);
         // Check across all users for pending nickname changes that match the new nickname
         // This checks if another user has a pending audit with the same target nickname
         for (ReviewAudit audit : pendingNicknameAudits) {
@@ -467,7 +467,7 @@ public class UserService {
         // Also check all pending nickname audits across all users
         // (page through pending audits to find conflicts)
         Page<ReviewAudit> allPendingNicknames = reviewAuditRepository
-                .findByAuditType("NICKNAME", PageRequest.of(0, 1000));
+                .findByAuditType(AuditItemType.NICKNAME, PageRequest.of(0, 1000));
         boolean conflict = allPendingNicknames.getContent().stream()
                 .anyMatch(a -> newNickname.equals(a.getNewValue())
                         && a.getStatus() == ReviewAuditStatus.PENDING

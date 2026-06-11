@@ -17,6 +17,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -41,6 +42,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             Optional<User> userOpt = userRepository.findById(userId);
             if (userOpt.isPresent() && userOpt.get().getAccountStatus().name().equals("NORMAL")) {
+                User user = userOpt.get();
+                // Update lastLoginTime to track online users (throttled to every 5 min)
+                LocalDateTime now = LocalDateTime.now();
+                if (user.getLastLoginTime() == null || user.getLastLoginTime().isBefore(now.minusMinutes(5))) {
+                    user.setLastLoginTime(now);
+                    userRepository.save(user);
+                }
                 List<GrantedAuthority> authorities = List.of(new SimpleGrantedAuthority(role));
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(userId, null, authorities);

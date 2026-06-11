@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { getAdminCategories, createCategory, updateCategory, deleteCategory, toggleCategoryStatus } from '@/api/admin'
+import { getAdminCategories, createCategory, updateCategory, deleteCategory } from '@/api/admin'
 import type { TaskCategory } from '@/types/task'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 const list = ref<TaskCategory[]>([])
 const loading = ref(false)
-const addForm = ref({ name: '', sortWeight: 0 })
+const addForm = ref({ name: '', sortOrder: 0 })
 const editTarget = ref<TaskCategory | null>(null)
 const editDialogVisible = ref(false)
 const editForm = ref({ name: '', sortWeight: 0 })
@@ -21,7 +21,7 @@ async function handleAdd() {
   if (addForm.value.name.length > 10) { ElMessage.error('分类名称不超过10字'); return }
   await createCategory(addForm.value)
   ElMessage.success('分类已添加')
-  addForm.value = { name: '', sortWeight: 0 }
+  addForm.value = { name: '', sortOrder: 0 }
   fetchList()
 }
 
@@ -53,7 +53,7 @@ async function handleDelete(cat: TaskCategory) {
 }
 
 async function handleToggle(cat: TaskCategory) {
-  await toggleCategoryStatus(cat.id, !cat.enabled)
+  await updateCategory(cat.id, { ...cat, enabled: !cat.enabled })
   ElMessage.success(cat.enabled ? '已禁用' : '已启用')
   fetchList()
 }
@@ -71,8 +71,6 @@ onMounted(fetchList)
       <div class="add-row">
         <el-input v-model="addForm.name" placeholder="分类名称（最长10字）" style="width:200px"
           :maxlength="10" show-word-limit />
-        <el-input-number v-model="addForm.sortWeight" :min="0" placeholder="排序权重"
-          controls-position="right" style="width:140px" />
         <el-button type="primary" @click="handleAdd">➕ 添加</el-button>
       </div>
     </div>

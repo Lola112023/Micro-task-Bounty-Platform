@@ -1,6 +1,5 @@
 /**
  * 管理员相关 API
- * 后端接口占位，待实现
  */
 import request from './index'
 import type {
@@ -11,7 +10,6 @@ import type {
   AdminReportItem,
   AdminAppealItem,
   SystemConfig,
-  AdminFinanceRecord,
 } from '@/types/admin'
 import type { TaskCategory } from '@/types/task'
 import type { PageResult } from '@/types/task'
@@ -25,7 +23,8 @@ export function getDashboardStats(): Promise<DashboardStats> {
 export function getAdminUsers(params: {
   keyword?: string
   status?: string
-  creditRange?: string
+  minScore?: number
+  maxScore?: number
   page?: number
   pageSize?: number
 }): Promise<PageResult<AdminUser>> {
@@ -48,19 +47,19 @@ export function resetCreditScore(userId: number, reason: string): Promise<void> 
   return request.post(`/admin/users/${userId}/credit-reset`, { reason })
 }
 
-export function getUserOperationLog(userId: number, params: {
+export function getUserAuditLogs(userId: number, params: {
   page?: number
   pageSize?: number
 }): Promise<PageResult<{ action: string; detail: string; ip: string; createdAt: string }>> {
-  return request.get(`/admin/users/${userId}/logs`, { params })
+  return request.get(`/admin/users/${userId}/audit-logs`, { params })
 }
 
 export function batchFreezeGraduated(userIds: number[]): Promise<void> {
-  return request.post('/admin/users/batch-freeze', { userIds })
+  return request.post('/admin/users/graduated/handle', { userIds })
 }
 
 export function delayFreezeUser(userId: number, days: number): Promise<void> {
-  return request.post(`/admin/users/${userId}/delay-freeze`, { days })
+  return request.post(`/admin/users/${userId}/graduated/defer`, { days })
 }
 
 // ─── 任务管理 ─────────────────────────────────────────────────────────────────
@@ -73,25 +72,30 @@ export function getAdminTasks(params: {
   return request.get('/admin/tasks', { params })
 }
 
-export function forceRemoveTask(taskId: number, reason: string): Promise<void> {
-  return request.post(`/admin/tasks/${taskId}/force-remove`, { reason })
+export function forceCancelTask(taskId: number, reason: string): Promise<void> {
+  return request.post(`/admin/tasks/${taskId}/force-cancel`, { reason })
+}
+
+export function migrateTasksCategory(categoryId: number, targetCategoryId: number, taskIds: number[]): Promise<void> {
+  return request.post('/admin/tasks/migrate-category', { categoryId, targetCategoryId, taskIds })
 }
 
 // ─── 审核管理 ─────────────────────────────────────────────────────────────────
 export function getReviewList(params: {
   type?: string
+  status?: string
   page?: number
   pageSize?: number
 }): Promise<PageResult<AdminReviewItem>> {
-  return request.get('/admin/reviews', { params })
+  return request.get('/admin/review-audits', { params })
 }
 
-export function approveReview(reviewId: number): Promise<void> {
-  return request.post(`/admin/reviews/${reviewId}/approve`)
+export function approveReview(auditId: number): Promise<void> {
+  return request.post(`/admin/review-audits/${auditId}/approve`)
 }
 
-export function rejectReview(reviewId: number, reason: string): Promise<void> {
-  return request.post(`/admin/reviews/${reviewId}/reject`, { reason })
+export function rejectReview(auditId: number, reason: string): Promise<void> {
+  return request.post(`/admin/review-audits/${auditId}/reject`, { reason })
 }
 
 // ─── 举报处理 ─────────────────────────────────────────────────────────────────
@@ -103,12 +107,16 @@ export function getReportList(params: {
   return request.get('/admin/reports', { params })
 }
 
-export function verifyReport(reportId: number, freezeDays: number, creditDeduct: number): Promise<void> {
-  return request.post(`/admin/reports/${reportId}/verify`, { freezeDays, creditDeduct })
+export function verifyReport(reportId: number, penaltyDays?: number, creditPenalty?: number): Promise<void> {
+  return request.post(`/admin/reports/${reportId}/approve`, { penaltyDays, creditPenalty })
 }
 
 export function rejectReport(reportId: number): Promise<void> {
-  return request.post(`/admin/reports/${reportId}/reject`)
+  return request.post(`/admin/reports/${reportId}/reject`, {})
+}
+
+export function rejectReportWithPenalty(reportId: number, penaltyDays?: number, creditPenalty?: number): Promise<void> {
+  return request.post(`/admin/reports/${reportId}/reject-with-penalty`, { penaltyDays, creditPenalty })
 }
 
 // ─── 申诉处理 ─────────────────────────────────────────────────────────────────
@@ -120,68 +128,32 @@ export function getAppealList(params: {
   return request.get('/admin/appeals', { params })
 }
 
-export function judgeAppealComplete(appealId: number, opinion: string): Promise<void> {
-  return request.post(`/admin/appeals/${appealId}/complete`, { opinion })
-}
-
-export function judgeAppealCancel(appealId: number, opinion: string): Promise<void> {
-  return request.post(`/admin/appeals/${appealId}/cancel`, { opinion })
-}
-
-export function judgeAppealContinue(appealId: number, opinion: string): Promise<void> {
-  return request.post(`/admin/appeals/${appealId}/continue`, { opinion })
+export function processAppeal(appealId: number, decision: 'COMPLETED' | 'CANCELLED' | 'IN_PROGRESS', adminNote: string): Promise<void> {
+  return request.post(`/admin/appeals/${appealId}/process`, { decision, adminNote })
 }
 
 // ─── 系统配置 ─────────────────────────────────────────────────────────────────
-export function getSystemConfig(): Promise<SystemConfig> {
-  return request.get('/admin/settings')
+export async function getSystemConfig(): Promise<SystemConfig> {
+  const list: Array<{ id: number; configKey: string; configValue: string; configType: string }> = await request.get('/admin/configs')
+  const platformConfig = list.find((c: { configKey: string }) => c.configKey === 'platform_config')
+  if (platformConfig) {
+    return JSON.parse(platformConfig.configValue) as SystemConfig
+  }
+  // Return default empty config if none found
+  return {} as SystemConfig
 }
 
-export function saveSystemConfig(config: Partial<SystemConfig>): Promise<void> {
-  return request.put('/admin/settings', config)
+export async function updateConfig(configId: number, configValue: string): Promise<void> {
+  return request.put(`/admin/configs/${configId}`, { configValue })
 }
 
-// ─── 财务审计 ─────────────────────────────────────────────────────────────────
-export function getRechargeRecords(params: {
-  page?: number
-  pageSize?: number
-}): Promise<PageResult<AdminFinanceRecord>> {
-  return request.get('/admin/finance/recharges', { params })
-}
-
-export function getWithdrawRecords(params: {
-  page?: number
-  pageSize?: number
-}): Promise<PageResult<AdminFinanceRecord>> {
-  return request.get('/admin/finance/withdrawals', { params })
-}
-
-export function markWithdrawPaid(withdrawId: string): Promise<void> {
-  return request.post(`/admin/finance/withdrawals/${withdrawId}/paid`)
-}
-
-export function rejectWithdraw(withdrawId: string, reason: string): Promise<void> {
-  return request.post(`/admin/finance/withdrawals/${withdrawId}/reject`, { reason })
-}
-
-export function getPlatformFlow(params: {
-  startDate?: string
-  endDate?: string
-  page?: number
-  pageSize?: number
-}): Promise<PageResult<AdminFinanceRecord>> {
-  return request.get('/admin/finance/platform-flow', { params })
-}
-
-export function getAnomalyRecords(params: {
-  page?: number
-  pageSize?: number
-}): Promise<PageResult<AdminFinanceRecord>> {
-  return request.get('/admin/finance/anomalies', { params })
-}
-
-export function exportFinance(type: string, params: object): Promise<Blob> {
-  return request.get(`/admin/finance/${type}/export`, { params, responseType: 'blob' })
+export async function saveSystemConfig(configData: SystemConfig): Promise<void> {
+  const list: Array<{ id: number; configKey: string; configValue: string }> = await request.get('/admin/configs')
+  const platformConfig = list.find((c: { configKey: string }) => c.configKey === 'platform_config')
+  if (platformConfig) {
+    return request.put(`/admin/configs/${platformConfig.id}`, { configValue: JSON.stringify(configData) })
+  }
+  throw new Error('Platform config not found')
 }
 
 // ─── 消息广播 ─────────────────────────────────────────────────────────────────
@@ -193,28 +165,25 @@ export function sendBroadcast(data: {
   strongAlert: boolean
   scheduledAt?: string
 }): Promise<void> {
-  return request.post('/admin/broadcast', data)
+  return request.post('/admin/broadcasts', data)
 }
 
-export function getBroadcastHistory(params: {
-  page?: number
-  pageSize?: number
-}): Promise<PageResult<{
-  id: number
+export function sendScheduledBroadcast(data: {
   title: string
-  targetScope: string
-  sentAt: string
-  readCount: number
-}>> {
-  return request.get('/admin/broadcast/history', { params })
+  content: string
+  targetScope: 'all' | 'publisher' | 'taker' | 'specific'
+  targetIds?: string[]
+  scheduledAt: string
+}): Promise<void> {
+  return request.post('/admin/broadcasts/scheduled', data)
 }
 
 // ─── 分类管理 ─────────────────────────────────────────────────────────────────
 export function getAdminCategories(): Promise<TaskCategory[]> {
-  return request.get('/admin/categories')
+  return request.get('/public/categories')
 }
 
-export function createCategory(data: { name: string; sortWeight: number }): Promise<TaskCategory> {
+export function createCategory(data: { name: string; sortOrder: number }): Promise<TaskCategory> {
   return request.post('/admin/categories', data)
 }
 
@@ -224,12 +193,4 @@ export function updateCategory(id: number, data: Partial<TaskCategory>): Promise
 
 export function deleteCategory(id: number): Promise<void> {
   return request.delete(`/admin/categories/${id}`)
-}
-
-export function migrateTasksCategory(fromId: number, toId: number): Promise<void> {
-  return request.post('/admin/categories/migrate', { fromId, toId })
-}
-
-export function toggleCategoryStatus(id: number, enabled: boolean): Promise<void> {
-  return request.put(`/admin/categories/${id}/status`, { enabled })
 }

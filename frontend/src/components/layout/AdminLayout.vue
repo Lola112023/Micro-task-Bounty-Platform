@@ -14,7 +14,7 @@ const activeMenu = computed(() => {
   if (path.startsWith('/admin/tasks')) return '/admin/tasks'
   if (path.startsWith('/admin/reviews')) return '/admin/reviews'
   if (path.startsWith('/admin/settings')) return '/admin/settings'
-  if (path.startsWith('/admin/finance')) return '/admin/finance'
+
   if (path.startsWith('/admin/broadcast')) return '/admin/broadcast'
   if (path.startsWith('/admin/categories')) return '/admin/categories'
   return '/admin/dashboard'
@@ -73,10 +73,7 @@ async function handleLogout() {
             <el-icon><Setting /></el-icon>
             <template #title>系统配置</template>
           </el-menu-item>
-          <el-menu-item index="/admin/finance">
-            <el-icon><Money /></el-icon>
-            <template #title>财务审计</template>
-          </el-menu-item>
+
           <el-menu-item index="/admin/broadcast">
             <el-icon><Notification /></el-icon>
             <template #title>消息广播</template>

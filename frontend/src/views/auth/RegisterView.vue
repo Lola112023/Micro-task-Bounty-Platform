@@ -17,11 +17,6 @@ const form = reactive({
   password: '',
   confirmPassword: '',
   nickname: '',
-  realName: '',
-  studentNo: '',
-  grade: '',
-  college: '',
-  academy: '',
 })
 
 const validateConfirm = (_rule: unknown, value: string, callback: (e?: Error) => void) => {
@@ -49,14 +44,6 @@ const rules: FormRules = {
     { required: true, message: '请输入昵称', trigger: 'blur' },
     { max: 50, message: '昵称长度不能超过50个字符', trigger: 'blur' },
   ],
-  realName: [
-    { required: true, message: '请输入姓名', trigger: 'blur' },
-    { max: 50, message: '姓名长度不能超过50个字符', trigger: 'blur' },
-  ],
-  studentNo: [
-    { required: true, message: '请输入学号/工号', trigger: 'blur' },
-    { max: 50, message: '学号/工号长度不能超过50个字符', trigger: 'blur' },
-  ],
 }
 
 async function handleRegister() {
@@ -68,11 +55,6 @@ async function handleRegister() {
       password: form.password,
       confirmPassword: form.confirmPassword,
       nickname: form.nickname,
-      realName: form.realName,
-      studentNo: form.studentNo,
-      grade: form.grade,
-      college: form.college,
-      academy: form.academy,
     })
     auth.setToken(res.token)
     auth.setUser(res.user)
@@ -92,7 +74,7 @@ async function handleRegister() {
       <div class="register-header">
         <div class="register-logo">任</div>
         <div class="register-title">创建账号</div>
-        <div class="register-subtitle">账户与学号/工号一一对应，禁止重复注册</div>
+        <div class="register-subtitle">注册后即可发布和承接任务</div>
       </div>
 
       <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
@@ -118,37 +100,6 @@ async function handleRegister() {
           <el-col :span="12">
             <el-form-item label="确认密码" prop="confirmPassword">
               <el-input v-model="form.confirmPassword" type="password" placeholder="再次输入密码" show-password />
-            </el-form-item>
-          </el-col>
-        </el-row>
-
-        <el-row :gutter="16">
-          <el-col :span="12">
-            <el-form-item label="姓名" prop="realName">
-              <el-input v-model="form.realName" placeholder="真实姓名" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="学号/工号" prop="studentNo">
-              <el-input v-model="form.studentNo" placeholder="学号或工号" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-
-        <el-row :gutter="16">
-          <el-col :span="8">
-            <el-form-item label="年级">
-              <el-input v-model="form.grade" placeholder="如：2024级" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="学院">
-              <el-input v-model="form.college" placeholder="如：计算机学院" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="书院">
-              <el-input v-model="form.academy" placeholder="如：知行书院" />
             </el-form-item>
           </el-col>
         </el-row>
@@ -182,7 +133,7 @@ async function handleRegister() {
   border-radius: 12px;
   padding: 40px;
   width: 100%;
-  max-width: 600px;
+  max-width: 480px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
 }
 

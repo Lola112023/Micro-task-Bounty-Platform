@@ -35,6 +35,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Query("SELECT COUNT(u) FROM User u WHERE u.createdAt >= :since")
     long countNewUsersSince(@Param("since") LocalDateTime since);
 
+    @Query("SELECT COUNT(u) FROM User u WHERE u.lastLoginTime >= :since")
+    long countActiveUsersSince(@Param("since") LocalDateTime since);
+
     List<User> findByCreditScoreLessThan(int threshold);
 
     @Query("SELECT u FROM User u WHERE u.creditScore BETWEEN :min AND :max")

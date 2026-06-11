@@ -110,6 +110,12 @@ const router = createRouter({
           component: () => import('@/views/admin/TasksView.vue'),
         },
         {
+          path: 'tasks/:taskId',
+          name: 'AdminTaskDetail',
+          component: () => import('@/views/user/TaskDetailView.vue'),
+          props: true,
+        },
+        {
           path: 'reviews',
           name: 'AdminReviews',
           component: () => import('@/views/admin/ReviewsView.vue'),
@@ -119,11 +125,7 @@ const router = createRouter({
           name: 'AdminSettings',
           component: () => import('@/views/admin/SettingsView.vue'),
         },
-        {
-          path: 'finance',
-          name: 'AdminFinance',
-          component: () => import('@/views/admin/FinanceView.vue'),
-        },
+
         {
           path: 'broadcast',
           name: 'AdminBroadcast',

@@ -5,36 +5,26 @@ export interface DashboardStats {
   totalTasks: number
   inProgressTasks: number
   pendingConfirmTasks: number
-  timeoutTasks: number
-  pendingAvatarReviews: number
-  pendingNicknameReviews: number
-  pendingAnnouncementReviews: number
+  overdueTasks: number
+  pendingAvatarAudits: number
+  pendingNicknameAudits: number
+  pendingAnnouncementAudits: number
   pendingAppeals: number
-  reportedTasks: number
-  platformBalance: number
-  weeklyWithdrawFee: number
-  weeklyRechargeChart: ChartDataPoint[]
-  weeklyWithdrawChart: ChartDataPoint[]
-}
-
-export interface ChartDataPoint {
-  date: string
-  value: number
+  pendingReports: number
 }
 
 export interface AdminUser {
   id: number
-  studentId: string
-  name: string
+  studentNo: string
   nickname: string
-  avatarUrl: string
+  realName: string | null
   creditScore: number
-  accountStatus: 'normal' | 'frozen' | 'pending_freeze'
-  registeredAt: string
-  lastLoginIp: string
-  grade: string | null
-  college: string | null
-  academy: string | null
+  accountStatus: string
+  role: string
+  createdAt: string
+  lastLoginTime: string | null
+  graduationFreezeCount: number | null
+  creditResetUsed: boolean | null
 }
 
 export interface AdminTask {
@@ -50,38 +40,43 @@ export interface AdminTask {
 
 export interface AdminReviewItem {
   id: number
-  type: 'avatar' | 'nickname' | 'announcement'
+  auditType: string       // 'AVATAR' | 'NICKNAME' | 'ANNOUNCEMENT'
   applicantId: number
   applicantNickname: string
-  content: string
+  oldValue: string | null
+  newValue: string
   submittedAt: string
-  status: 'pending' | 'approved' | 'rejected' | 'timeout'
+  status: string           // 'PENDING' | 'APPROVED' | 'REJECTED' | 'TIMEOUT_REJECTED'
+  rejectReason: string | null
+  processedAt: string | null
 }
 
 export interface AdminReportItem {
   id: number
-  taskId: number
-  taskTitle: string
+  targetType: string      // 'TASK' | 'USER' | 'DELIVERY'
+  targetId: number
   reporterId: number
-  reporterNickname: string | null
-  reportType: 'porn' | 'violence' | 'fraud' | 'other'
-  reason: string
-  status: 'pending' | 'verified' | 'rejected'
-  reportedAt: string
+  reportType: string       // 'PORN' | 'VIOLENCE' | 'FRAUD' | 'OTHER'
+  evidence: string | null
+  status: string           // 'PENDING' | 'APPROVED' | 'REJECTED'
+  adminNote: string | null
+  penaltyDays: number | null
+  creditPenalty: number | null
+  processedAt: string | null
+  createdAt: string
 }
 
 export interface AdminAppealItem {
   id: number
   taskId: number
-  taskTitle: string
-  appellantId: number
-  appellantNickname: string
-  respondentId: number
-  respondentNickname: string
+  appealerId: number
   reason: string
-  respondentReply: string | null
-  status: 'pending' | 'completed' | 'cancelled' | 'continue'
-  submittedAt: string
+  status: string           // 'PENDING' | 'RESOLVED'
+  adminDecision: string | null  // 'COMPLETED' | 'CANCELLED' | 'IN_PROGRESS'
+  adminId: number | null
+  adminNote: string | null
+  resolvedAt: string | null
+  createdAt: string
 }
 
 export interface SystemConfig {
@@ -116,17 +111,4 @@ export interface SystemConfig {
   deliveryKeepDays: number
   // 同步
   syncCron: string
-}
-
-export interface AdminFinanceRecord {
-  id: string
-  userId: number
-  userNickname: string
-  amount: number
-  payMethod?: string
-  status: string
-  createdAt: string
-  fee?: number
-  withdrawPoints?: number
-  actualAmount?: number
 }

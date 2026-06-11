@@ -1,6 +1,7 @@
 package com.firstteam.taskbountyplatform.admin.repository;
 
 import com.firstteam.taskbountyplatform.admin.entity.ReviewAudit;
+import com.firstteam.taskbountyplatform.common.enums.AuditItemType;
 import com.firstteam.taskbountyplatform.common.enums.ReviewAuditStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -12,7 +13,7 @@ import java.util.List;
 @Repository
 public interface ReviewAuditRepository extends JpaRepository<ReviewAudit, Long> {
     Page<ReviewAudit> findByStatus(ReviewAuditStatus status, Pageable pageable);
-    Page<ReviewAudit> findByAuditType(String auditType, Pageable pageable);
-    List<ReviewAudit> findByApplicantIdAndAuditTypeAndStatus(Long applicantId, String auditType, ReviewAuditStatus status);
+    Page<ReviewAudit> findByAuditType(AuditItemType auditType, Pageable pageable);
+    List<ReviewAudit> findByApplicantIdAndAuditTypeAndStatus(Long applicantId, AuditItemType auditType, ReviewAuditStatus status);
     long countByStatus(ReviewAuditStatus status);
 }

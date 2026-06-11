@@ -48,7 +48,7 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
         </div>
         <div class="admin-stat-card" style="background:linear-gradient(135deg,#8e2de2,#4a00e0)">
           <div class="admin-stat-label">🚨 超时未交付</div>
-          <div class="admin-stat-value">{{ stats.timeoutTasks }}</div>
+          <div class="admin-stat-value">{{ stats.overdueTasks }}</div>
         </div>
       </div>
 
@@ -58,17 +58,17 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
         <div class="pending-grid">
           <div class="pending-item" @click="router.push('/admin/reviews?tab=avatar')">
             <div class="pending-icon">🖼️</div>
-            <div class="pending-count">{{ stats.pendingAvatarReviews }}</div>
+            <div class="pending-count">{{ stats.pendingAvatarAudits }}</div>
             <div class="pending-label">待审核头像</div>
           </div>
           <div class="pending-item" @click="router.push('/admin/reviews?tab=nickname')">
             <div class="pending-icon">📝</div>
-            <div class="pending-count">{{ stats.pendingNicknameReviews }}</div>
+            <div class="pending-count">{{ stats.pendingNicknameAudits }}</div>
             <div class="pending-label">待审核昵称</div>
           </div>
           <div class="pending-item" @click="router.push('/admin/reviews?tab=announcement')">
             <div class="pending-icon">📢</div>
-            <div class="pending-count">{{ stats.pendingAnnouncementReviews }}</div>
+            <div class="pending-count">{{ stats.pendingAnnouncementAudits }}</div>
             <div class="pending-label">待审核公告栏</div>
           </div>
           <div class="pending-item" @click="router.push('/admin/reviews?tab=appeal')">
@@ -78,30 +78,12 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
           </div>
           <div class="pending-item" @click="router.push('/admin/reviews?tab=report')">
             <div class="pending-icon">🚨</div>
-            <div class="pending-count">{{ stats.reportedTasks }}</div>
+            <div class="pending-count">{{ stats.pendingReports }}</div>
             <div class="pending-label">被举报任务</div>
           </div>
         </div>
       </div>
 
-      <!-- 财务数据 -->
-      <div class="card">
-        <div class="card-title">💰 财务数据</div>
-        <div class="finance-grid">
-          <div class="finance-card" style="background:linear-gradient(135deg,#f093fb,#f5576c)">
-            <div style="font-size:13px;opacity:.9;margin-bottom:8px">平台收益账户余额</div>
-            <div style="font-size:28px;font-weight:700">{{ stats.platformBalance.toLocaleString() }}
-              <span style="font-size:16px">积分</span>
-            </div>
-          </div>
-          <div class="finance-card" style="background:linear-gradient(135deg,#4facfe,#00f2fe)">
-            <div style="font-size:13px;opacity:.9;margin-bottom:8px">近7天提现手续费</div>
-            <div style="font-size:28px;font-weight:700">{{ stats.weeklyWithdrawFee.toLocaleString() }}
-              <span style="font-size:16px">积分</span>
-            </div>
-          </div>
-        </div>
-      </div>
     </template>
   </div>
 </template>
@@ -138,11 +120,4 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
 .pending-icon { font-size: 22px; margin-bottom: 8px; }
 .pending-count { font-size: 26px; font-weight: 700; color: #1e56a0; margin-bottom: 4px; }
 .pending-label { font-size: 13px; color: #595959; }
-.finance-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
-.finance-card {
-  color: white;
-  padding: 20px;
-  border-radius: 10px;
-  box-shadow: 0 4px 12px rgba(0,0,0,.15);
-}
 </style>

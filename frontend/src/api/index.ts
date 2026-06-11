@@ -27,6 +27,10 @@ request.interceptors.response.use(
     const body = response.data
     // 后端返回 { code, message, data } 格式
     if (body && typeof body.code === 'number') {
+      if (body.code !== 200) {
+        ElMessage.error(body.message || '请求失败')
+        return Promise.reject(new Error(body.message || '请求失败'))
+      }
       return body.data !== undefined ? body.data : body
     }
     return body

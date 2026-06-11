@@ -47,7 +47,12 @@ public class TaskCategoryController {
 
     @PostMapping("/admin/categories")
     public ApiResponse<TaskCategory> createCategory(@RequestBody @Valid TaskCategory category) {
-        // Check if category name already exists
+        if (!userContext.isAdmin()) {
+            return ApiResponse.error(403, "无权限");
+        }
+        if (category.getName() == null || category.getName().trim().isEmpty()) {
+            throw new BusinessException(400, "分类名称不能为空");
+        }
         if (categoryRepository.existsByName(category.getName())) {
             throw new BusinessException(400, "分类名称已存在: " + category.getName());
         }
@@ -64,6 +69,9 @@ public class TaskCategoryController {
     public ApiResponse<TaskCategory> updateCategory(
             @PathVariable Long id,
             @RequestBody @Valid TaskCategory updateRequest) {
+        if (!userContext.isAdmin()) {
+            return ApiResponse.error(403, "无权限");
+        }
         TaskCategory category = categoryRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(404, "分类不存在"));
 
@@ -94,6 +102,9 @@ public class TaskCategoryController {
 
     @DeleteMapping("/admin/categories/{id}")
     public ApiResponse<Void> deleteCategory(@PathVariable Long id) {
+        if (!userContext.isAdmin()) {
+            return ApiResponse.error(403, "无权限");
+        }
         TaskCategory category = categoryRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(404, "分类不存在"));
 

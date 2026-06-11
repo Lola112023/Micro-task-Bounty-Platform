@@ -90,33 +90,6 @@ onMounted(load)
         </div>
       </div>
 
-      <!-- 积分配置 -->
-      <div class="card config-section">
-        <div class="section-title">💰 积分与提现配置</div>
-        <div class="config-grid">
-          <div class="config-item">
-            <label>单笔充值下限（元）</label>
-            <el-input-number v-model="config.rechargeMinAmount" :min="1" />
-          </div>
-          <div class="config-item">
-            <label>日累计充值上限（元）</label>
-            <el-input-number v-model="config.rechargeDailyLimit" :min="1" />
-          </div>
-          <div class="config-item">
-            <label>提现单笔下限（积分）</label>
-            <el-input-number v-model="config.withdrawMinPoints" :min="1" />
-          </div>
-          <div class="config-item">
-            <label>日提现上限（积分）</label>
-            <el-input-number v-model="config.withdrawDailyLimit" :min="1" />
-          </div>
-          <div class="config-item">
-            <label>提现手续费率（%）</label>
-            <el-input-number v-model="config.withdrawFeeRate" :min="0" :max="20" :precision="1" :step="0.5" />
-          </div>
-        </div>
-      </div>
-
       <!-- 超时配置 -->
       <div class="card config-section">
         <div class="section-title">⏱️ 超时与任务时限配置</div>

@@ -6,7 +6,6 @@ import com.firstteam.taskbountyplatform.audit.entity.AuditLog;
 import com.firstteam.taskbountyplatform.auth.security.UserContext;
 import com.firstteam.taskbountyplatform.common.response.ApiResponse;
 import com.firstteam.taskbountyplatform.common.response.PageResult;
-import com.firstteam.taskbountyplatform.task.entity.Task;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -51,9 +50,9 @@ public class AdminController {
             @RequestParam(required = false) String status,
             @RequestParam(required = false) Integer minScore,
             @RequestParam(required = false) Integer maxScore,
-            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Pageable pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         return ApiResponse.success(adminService.listUsers(keyword, status, minScore, maxScore, pageable));
     }
 
@@ -96,9 +95,9 @@ public class AdminController {
     @GetMapping("/users/{userId}/audit-logs")
     public ApiResponse<PageResult<AuditLog>> getUserAuditLogs(
             @PathVariable Long userId,
-            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Pageable pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         return ApiResponse.success(adminService.getUserAuditLogs(userId, pageable));
     }
 
@@ -121,12 +120,12 @@ public class AdminController {
     // ==================== Task Management ====================
 
     @GetMapping("/tasks")
-    public ApiResponse<PageResult<Task>> listAllTasks(
+    public ApiResponse<PageResult<AdminTaskDTO>> listAllTasks(
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String keyword,
-            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Pageable pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         return ApiResponse.success(adminService.listAllTasks(status, keyword, pageable));
     }
 
@@ -156,9 +155,9 @@ public class AdminController {
     public ApiResponse<PageResult<ReviewAuditDTO>> listReviewAudits(
             @RequestParam(required = false) String type,
             @RequestParam(required = false) String status,
-            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "submittedAt"));
+        Pageable pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "submittedAt"));
         return ApiResponse.success(adminService.listReviewAudits(type, status, pageable));
     }
 
