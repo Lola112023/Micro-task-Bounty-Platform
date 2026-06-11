@@ -971,7 +971,8 @@ public class TaskService {
             throw new BusinessException(400, "任务已截止，无法延长");
         }
         long maxSingleExtend = remainingMinutes * platformConfig.getTask().getExtendRatio() / 100;
-        int extendMinutes = request.getExtendMinutes();
+        Integer reqMinutes = request != null ? request.getExtendMinutes() : null;
+        int extendMinutes = (reqMinutes != null && reqMinutes > 0) ? reqMinutes : (int) maxSingleExtend;
         if (extendMinutes > maxSingleExtend) {
             throw new BusinessException(400, "单次延长不能超过剩余时间的" + platformConfig.getTask().getExtendRatio() + "% (" + maxSingleExtend + "分钟)");
         }
@@ -1009,7 +1010,255 @@ public class TaskService {
     }
 
     // ========================================================================
-    // 14. submitAppeal
+    // 14. forceCancelTask
+    // ========================================================================
+
+    @Transactional
+    public void forceCancelTask(Long taskId, Long publisherId) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new BusinessException(404, "任务不存在"));
+
+        if (!task.getPublisherId().equals(publisherId)) {
+            throw new BusinessException(403, "只有发布者可以强制取消任务");
+        }
+
+        if (task.getStatus() != TaskStatus.IN_PROGRESS) {
+            throw new BusinessException(400, "只有进行中的任务可以强制取消");
+        }
+
+        Long winnerId = task.getWinnerId();
+        int rewardPoints = task.getRewardPoints();
+
+        // Penalty: 5% of reward points deducted from frozen, rest returned to publisher
+        int penaltyPoints = (int) Math.ceil(rewardPoints * 0.05);
+        int returnPoints = rewardPoints - penaltyPoints;
+
+        PointAccount pubAccount = pointAccountRepository.findByUserIdForUpdate(publisherId)
+                .orElseThrow(() -> new BusinessException(400, "发布者积分账户不存在"));
+
+        int balanceBefore = pubAccount.getAvailablePoints();
+
+        // Unfreeze total reward
+        pubAccount.setFrozenPoints(pubAccount.getFrozenPoints() - rewardPoints);
+
+        // Return points minus penalty
+        if (returnPoints > 0) {
+            pubAccount.setAvailablePoints(pubAccount.getAvailablePoints() + returnPoints);
+
+            PointFlow returnFlow = new PointFlow();
+            returnFlow.setUserId(publisherId);
+            returnFlow.setTaskId(taskId);
+            returnFlow.setChangeAmount(returnPoints);
+            returnFlow.setBalanceBefore(balanceBefore);
+            returnFlow.setBalanceAfter(pubAccount.getAvailablePoints());
+            returnFlow.setFlowType(PointFlowType.UNFREEZE);
+            returnFlow.setDescription("强制取消任务，返还积分(扣5%违约金): " + returnPoints + " 积分");
+            pointFlowRepository.save(returnFlow);
+
+            if (penaltyPoints > 0) {
+                PointFlow penaltyFlow = new PointFlow();
+                penaltyFlow.setUserId(publisherId);
+                penaltyFlow.setTaskId(taskId);
+                penaltyFlow.setChangeAmount(-penaltyPoints);
+                penaltyFlow.setBalanceBefore(pubAccount.getAvailablePoints());
+                penaltyFlow.setBalanceAfter(pubAccount.getAvailablePoints());
+                penaltyFlow.setFlowType(PointFlowType.EXPENSE);
+                penaltyFlow.setDescription("强制取消任务违约金: " + penaltyPoints + " 积分");
+                pointFlowRepository.save(penaltyFlow);
+            }
+        }
+        pointAccountRepository.save(pubAccount);
+
+        // Change task status to CANCELLED
+        task.setStatus(TaskStatus.CANCELLED);
+        task.setCancelledAt(LocalDateTime.now());
+        taskRepository.save(task);
+
+        // Publisher credit penalty
+        User publisher = userRepository.findById(publisherId).orElse(null);
+        if (publisher != null) {
+            int oldScore = publisher.getCreditScore() != null ? publisher.getCreditScore() : 80;
+            int newScore = Math.max(0, oldScore + platformConfig.getCredit().getPublisherCancelPenalty());
+            publisher.setCreditScore(newScore);
+            userRepository.save(publisher);
+        }
+
+        // Worker credit penalty (timeout penalty)
+        if (winnerId != null) {
+            User winner = userRepository.findById(winnerId).orElse(null);
+            if (winner != null) {
+                int oldScore = winner.getCreditScore() != null ? winner.getCreditScore() : 80;
+                int newScore = Math.max(0, oldScore + platformConfig.getCredit().getOvertimePenalty());
+                winner.setCreditScore(newScore);
+                userRepository.save(winner);
+            }
+
+            notificationService.createNotification(winnerId,
+                    NotificationType.TASK_CANCELLED,
+                    "任务被强制取消",
+                    "任务「" + task.getTitle() + "」已被发布者强制取消，接单者记录超时扣分",
+                    "/tasks/" + taskId);
+        }
+
+        auditLogService.log(publisherId, AuditActionType.TASK_PUBLISH,
+                "TASK", taskId, "强制取消任务: " + task.getTitle() + ", 扣违约金 " + penaltyPoints + " 积分", "127.0.0.1");
+
+        log.info("Task force-cancelled: id={}, publisherId={}, winnerId={}, penaltyPoints={}",
+                taskId, publisherId, winnerId, penaltyPoints);
+    }
+
+    // ========================================================================
+    // 15. requestCancelTask — worker requests to cancel IN_PROGRESS task
+    // ========================================================================
+
+    @Transactional
+    public void requestCancelTask(Long taskId, Long workerId, TaskCancelRequest request) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new BusinessException(404, "任务不存在"));
+
+        if (task.getStatus() != TaskStatus.IN_PROGRESS) {
+            throw new BusinessException(400, "只有进行中的任务可以申请取消");
+        }
+
+        if (!workerId.equals(task.getWinnerId())) {
+            throw new BusinessException(403, "只有接单者可以申请取消");
+        }
+
+        Long publisherId = task.getPublisherId();
+        int rewardPoints = task.getRewardPoints();
+
+        // Return frozen points to publisher (no penalty — worker initiated cancellation)
+        pointAccountRepository.findByUserIdForUpdate(publisherId).ifPresent(pubAccount -> {
+            int balanceBefore = pubAccount.getAvailablePoints();
+            pubAccount.setFrozenPoints(pubAccount.getFrozenPoints() - rewardPoints);
+            pubAccount.setAvailablePoints(balanceBefore + rewardPoints);
+
+            PointFlow flow = new PointFlow();
+            flow.setUserId(publisherId);
+            flow.setTaskId(taskId);
+            flow.setChangeAmount(rewardPoints);
+            flow.setBalanceBefore(balanceBefore);
+            flow.setBalanceAfter(balanceBefore + rewardPoints);
+            flow.setFlowType(PointFlowType.UNFREEZE);
+            flow.setDescription("接单者申请取消，积分退还: " + rewardPoints + " 积分");
+            flow.setCreatedAt(LocalDateTime.now());
+            pointFlowRepository.save(flow);
+
+            pointAccountRepository.save(pubAccount);
+        });
+
+        // Apply voluntary quit penalty to worker
+        User worker = userRepository.findById(workerId).orElse(null);
+        if (worker != null) {
+            int oldScore = worker.getCreditScore() != null ? worker.getCreditScore() : 80;
+            int newScore = Math.max(0, oldScore + platformConfig.getCredit().getVoluntaryQuitPenalty());
+            worker.setCreditScore(newScore);
+            userRepository.save(worker);
+        }
+
+        // Mark task CANCELLED
+        task.setStatus(TaskStatus.CANCELLED);
+        task.setCancelledAt(LocalDateTime.now());
+        taskRepository.save(task);
+
+        // Notify publisher
+        String workerName = worker != null ? worker.getNickname() : "接单者";
+        notificationService.createNotification(publisherId,
+                NotificationType.TASK_CANCELLED,
+                "任务被取消",
+                "接单者「" + workerName + "」申请取消任务「" + task.getTitle() + "」，理由: " + request.getReason(),
+                "/tasks/" + taskId);
+
+        auditLogService.log(workerId, AuditActionType.TASK_APPLY,
+                "TASK", taskId, "申请取消任务: " + task.getTitle() + ", 理由: " + request.getReason(), "127.0.0.1");
+
+        log.info("Task cancelled by worker request: taskId={}, workerId={}", taskId, workerId);
+    }
+
+    // ========================================================================
+    // 16. handleCancelRequestTask — publisher handles worker's cancel request
+    // ========================================================================
+
+    @Transactional
+    public void handleCancelRequestTask(Long taskId, Long publisherId, HandleCancelRequest request) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new BusinessException(404, "任务不存在"));
+
+        if (!task.getPublisherId().equals(publisherId)) {
+            throw new BusinessException(403, "只有发布者可以处理取消申请");
+        }
+
+        if (task.getStatus() != TaskStatus.IN_PROGRESS) {
+            throw new BusinessException(400, "任务不在进行中状态");
+        }
+
+        Long winnerId = task.getWinnerId();
+
+        if (request.isAgree()) {
+            // Same as requestCancelTask — cancel and return points
+            int rewardPoints = task.getRewardPoints();
+
+            pointAccountRepository.findByUserIdForUpdate(publisherId).ifPresent(pubAccount -> {
+                int balanceBefore = pubAccount.getAvailablePoints();
+                pubAccount.setFrozenPoints(pubAccount.getFrozenPoints() - rewardPoints);
+                pubAccount.setAvailablePoints(balanceBefore + rewardPoints);
+
+                PointFlow flow = new PointFlow();
+                flow.setUserId(publisherId);
+                flow.setTaskId(taskId);
+                flow.setChangeAmount(rewardPoints);
+                flow.setBalanceBefore(balanceBefore);
+                flow.setBalanceAfter(balanceBefore + rewardPoints);
+                flow.setFlowType(PointFlowType.UNFREEZE);
+                flow.setDescription("发布者同意取消申请，积分退还: " + rewardPoints + " 积分");
+                flow.setCreatedAt(LocalDateTime.now());
+                pointFlowRepository.save(flow);
+
+                pointAccountRepository.save(pubAccount);
+            });
+
+            if (winnerId != null) {
+                User worker = userRepository.findById(winnerId).orElse(null);
+                if (worker != null) {
+                    int oldScore = worker.getCreditScore() != null ? worker.getCreditScore() : 80;
+                    int newScore = Math.max(0, oldScore + platformConfig.getCredit().getVoluntaryQuitPenalty());
+                    worker.setCreditScore(newScore);
+                    userRepository.save(worker);
+                }
+
+                notificationService.createNotification(winnerId,
+                        NotificationType.TASK_CANCELLED,
+                        "取消申请被同意",
+                        "发布者已同意您对任务「" + task.getTitle() + "」的取消申请",
+                        "/tasks/" + taskId);
+            }
+
+            task.setStatus(TaskStatus.CANCELLED);
+            task.setCancelledAt(LocalDateTime.now());
+            taskRepository.save(task);
+
+            auditLogService.log(publisherId, AuditActionType.TASK_PUBLISH,
+                    "TASK", taskId, "同意取消申请: " + task.getTitle(), "127.0.0.1");
+
+            log.info("Cancel request agreed: taskId={}, publisherId={}", taskId, publisherId);
+        } else {
+            if (winnerId != null) {
+                notificationService.createNotification(winnerId,
+                        NotificationType.TASK_UPDATE,
+                        "取消申请被拒绝",
+                        "发布者拒绝了您对任务「" + task.getTitle() + "」的取消申请，请继续完成",
+                        "/tasks/" + taskId);
+            }
+
+            auditLogService.log(publisherId, AuditActionType.TASK_PUBLISH,
+                    "TASK", taskId, "拒绝取消申请: " + task.getTitle(), "127.0.0.1");
+
+            log.info("Cancel request rejected: taskId={}, publisherId={}", taskId, publisherId);
+        }
+    }
+
+    // ========================================================================
+    // 17. submitAppeal
     // ========================================================================
 
     @Transactional
@@ -1069,7 +1318,7 @@ public class TaskService {
     }
 
     // ========================================================================
-    // 15. getRecommendedTasks
+    // 16. getRecommendedTasks
     // ========================================================================
 
     @Transactional(readOnly = true)

@@ -8,7 +8,6 @@ public class AdminDashboardDTO {
     private long inProgressTasks;
     private long pendingConfirmTasks;
     private long overdueTasks;
-    private long pendingAvatarAudits;
     private long pendingNicknameAudits;
     private long pendingAnnouncementAudits;
     private long pendingAppeals;
@@ -70,14 +69,6 @@ public class AdminDashboardDTO {
 
     public void setOverdueTasks(long overdueTasks) {
         this.overdueTasks = overdueTasks;
-    }
-
-    public long getPendingAvatarAudits() {
-        return pendingAvatarAudits;
-    }
-
-    public void setPendingAvatarAudits(long pendingAvatarAudits) {
-        this.pendingAvatarAudits = pendingAvatarAudits;
     }
 
     public long getPendingNicknameAudits() {

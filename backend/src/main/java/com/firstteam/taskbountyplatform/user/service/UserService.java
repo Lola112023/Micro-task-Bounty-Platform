@@ -3,6 +3,7 @@ package com.firstteam.taskbountyplatform.user.service;
 import com.firstteam.taskbountyplatform.admin.entity.ReviewAudit;
 import com.firstteam.taskbountyplatform.admin.repository.ReviewAuditRepository;
 import com.firstteam.taskbountyplatform.common.enums.AuditActionType;
+import com.firstteam.taskbountyplatform.common.exception.BusinessException;
 import com.firstteam.taskbountyplatform.common.enums.AuditItemType;
 import com.firstteam.taskbountyplatform.audit.entity.AuditLog;
 import com.firstteam.taskbountyplatform.audit.repository.AuditLogRepository;
@@ -64,9 +65,7 @@ public class UserService {
     /** Pattern: only Chinese characters, English letters, Arabic digits. No spaces, no special chars. */
     private static final Pattern NICKNAME_PATTERN = Pattern.compile("^[\\u4e00-\\u9fa5a-zA-Z0-9]+$");
 
-    private static final String AVATAR_UPLOAD_DIR = "./uploads/avatars";
-
-    public UserService(UserRepository userRepository,
+public UserService(UserRepository userRepository,
                        PointAccountRepository pointAccountRepository,
                        ReviewAuditRepository reviewAuditRepository,
                        TaskApplicationRepository taskApplicationRepository,
@@ -100,7 +99,7 @@ public class UserService {
     public Object getProfile(Long userId) {
         Long currentUserId = userContext.getCurrentUserId();
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("用户不存在"));
+                .orElseThrow(() -> new BusinessException(404, "用户不存在"));
 
         if (userId.equals(currentUserId) || userContext.isAdmin()) {
             return buildUserProfileDTO(user);
@@ -113,7 +112,7 @@ public class UserService {
      */
     public PublicUserDTO getPublicProfile(Long userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("用户不存在"));
+                .orElseThrow(() -> new BusinessException(404, "用户不存在"));
         return buildPublicUserDTO(user);
     }
 
@@ -124,22 +123,22 @@ public class UserService {
     public void requestNicknameChange(String newNickname) {
         Long currentUserId = userContext.getCurrentUserId();
         User user = userRepository.findById(currentUserId)
-                .orElseThrow(() -> new RuntimeException("用户不存在"));
+                .orElseThrow(() -> new BusinessException(404, "用户不存在"));
 
         // Validate format: only Chinese chars, English letters, Arabic digits
         if (!NICKNAME_PATTERN.matcher(newNickname).matches()) {
-            throw new RuntimeException("昵称只能包含中文、英文和阿拉伯数字，不能包含空格和特殊字符");
+            throw new BusinessException(400, "昵称只能包含中文、英文和阿拉伯数字，不能包含空格和特殊字符");
         }
 
         // Validate length < 10 chars (each char counts as 1)
         int charCount = newNickname.codePointCount(0, newNickname.length());
         if (charCount >= 10) {
-            throw new RuntimeException("昵称长度不能超过9个字");
+            throw new BusinessException(400, "昵称长度不能超过9个字");
         }
 
         // Validate not same as current
         if (newNickname.equals(user.getNickname())) {
-            throw new RuntimeException("新昵称不能与当前昵称相同");
+            throw new BusinessException(400, "新昵称不能与当前昵称相同");
         }
 
         // Check 30-day cooldown since last approved nickname change
@@ -171,90 +170,17 @@ public class UserService {
     }
 
     /**
-     * Request an avatar change (requires admin audit).
-     */
-    @Transactional
-    public void requestAvatarChange(MultipartFile file) {
-        Long currentUserId = userContext.getCurrentUserId();
-        User user = userRepository.findById(currentUserId)
-                .orElseThrow(() -> new RuntimeException("用户不存在"));
-
-        // Validate size < 1MB
-        if (file.getSize() > fileUploadConfig.getAvatarMaxSize()) {
-            throw new RuntimeException("头像文件不能超过 1MB");
-        }
-
-        // Validate format: jpg/png only
-        String contentType = file.getContentType();
-        if (contentType == null || (!contentType.equals("image/jpeg") && !contentType.equals("image/png"))) {
-            throw new RuntimeException("头像仅支持 JPG/PNG 格式");
-        }
-
-        // Validate dimensions: exactly 225x225
-        try {
-            BufferedImage image = ImageIO.read(file.getInputStream());
-            if (image == null) {
-                throw new RuntimeException("无法读取图片文件");
-            }
-            int width = image.getWidth();
-            int height = image.getHeight();
-            if (width != fileUploadConfig.getAvatarWidth() || height != fileUploadConfig.getAvatarHeight()) {
-                throw new RuntimeException("头像尺寸必须为 " + fileUploadConfig.getAvatarWidth()
-                        + "x" + fileUploadConfig.getAvatarHeight() + "，当前尺寸：" + width + "x" + height);
-            }
-        } catch (IOException e) {
-            throw new RuntimeException("读取图片信息失败：" + e.getMessage());
-        }
-
-        // Check no existing pending avatar audit
-        List<ReviewAudit> pendingAudits = reviewAuditRepository
-                .findByApplicantIdAndAuditTypeAndStatus(currentUserId, AuditItemType.AVATAR, ReviewAuditStatus.PENDING);
-        if (!pendingAudits.isEmpty()) {
-            throw new RuntimeException("您已有待审核的头像申请，请等待审核完成后再提交新申请");
-        }
-
-        // Save file temporarily
-        String filePath;
-        try {
-            filePath = saveTempAvatar(file, currentUserId);
-        } catch (IOException e) {
-            throw new RuntimeException("头像文件保存失败：" + e.getMessage());
-        }
-
-        // Create ReviewAudit record
-        ReviewAudit audit = new ReviewAudit();
-        audit.setApplicantId(currentUserId);
-        audit.setAuditType(AuditItemType.AVATAR);
-        audit.setOldValue(user.getAvatarUrl());
-        audit.setNewValue(filePath);
-        audit.setStatus(ReviewAuditStatus.PENDING);
-        audit.setSubmittedAt(LocalDateTime.now());
-        audit.setTimeoutAt(LocalDateTime.now().plusHours(24));
-        reviewAuditRepository.save(audit);
-
-        // Record audit log
-        AuditLog auditLog = new AuditLog();
-        auditLog.setOperatorId(currentUserId);
-        auditLog.setActionType(AuditActionType.AVATAR_CHANGE);
-        auditLog.setTargetType("USER");
-        auditLog.setTargetId(currentUserId);
-        auditLog.setDetail("申请修改头像，原头像：" + user.getAvatarUrl() + "，新头像文件：" + filePath + "，审核ID：" + audit.getId());
-        auditLog.setIp("system");
-        auditLogRepository.save(auditLog);
-    }
-
-    /**
      * Request an announcement change (requires admin audit).
      */
     @Transactional
     public void requestAnnouncementChange(String announcement) {
         Long currentUserId = userContext.getCurrentUserId();
         User user = userRepository.findById(currentUserId)
-                .orElseThrow(() -> new RuntimeException("用户不存在"));
+                .orElseThrow(() -> new BusinessException(404, "用户不存在"));
 
         // Validate length <= 200
         if (announcement != null && announcement.length() > 200) {
-            throw new RuntimeException("公告栏内容不能超过200个字符");
+            throw new BusinessException(400, "公告栏内容不能超过200个字符");
         }
 
         // Create ReviewAudit record
@@ -368,6 +294,7 @@ public class UserService {
     private UserProfileDTO buildUserProfileDTO(User user) {
         UserProfileDTO dto = new UserProfileDTO();
         dto.setId(user.getId());
+        dto.setUsername(user.getUsername());
         dto.setStudentNo(user.getStudentNo());
         dto.setRealName(user.getRealName());
         dto.setNickname(user.getNickname());
@@ -433,7 +360,7 @@ public class UserService {
                 LocalDateTime cooldownEnd = lastApprovedAt.plusDays(cooldownDays);
                 if (LocalDateTime.now().isBefore(cooldownEnd)) {
                     long remainingDays = java.time.Duration.between(LocalDateTime.now(), cooldownEnd).toDays();
-                    throw new RuntimeException("昵称修改冷却期为 " + cooldownDays + " 天，还需等待 "
+                    throw new BusinessException(400, "昵称修改冷却期为 " + cooldownDays + " 天，还需等待 "
                             + Math.max(1, remainingDays) + " 天");
                 }
             }
@@ -446,7 +373,7 @@ public class UserService {
     private void checkNicknameUniqueness(String newNickname) {
         // Check existing users
         if (userRepository.existsByNickname(newNickname)) {
-            throw new RuntimeException("该昵称已被其他用户使用");
+            throw new BusinessException(400, "该昵称已被其他用户使用");
         }
 
         Long currentUserId = userContext.getCurrentUserId();
@@ -460,7 +387,7 @@ public class UserService {
             // Only check our own pending audits to see if we already have one
             if (audit.getAuditType() == AuditItemType.NICKNAME
                     && audit.getStatus() == ReviewAuditStatus.PENDING) {
-                throw new RuntimeException("您已有待审核的昵称申请，请等待审核完成后再提交新申请");
+                throw new BusinessException(400, "您已有待审核的昵称申请，请等待审核完成后再提交新申请");
             }
         }
 
@@ -473,29 +400,8 @@ public class UserService {
                         && a.getStatus() == ReviewAuditStatus.PENDING
                         && !a.getApplicantId().equals(currentUserId));
         if (conflict) {
-            throw new RuntimeException("该昵称已被其他用户申请审核中，请选择其他昵称");
+            throw new BusinessException(400, "该昵称已被其他用户申请审核中，请选择其他昵称");
         }
     }
 
-    /**
-     * Save a temporary avatar file to disk.
-     */
-    private String saveTempAvatar(MultipartFile file, Long userId) throws IOException {
-        String originalName = file.getOriginalFilename();
-        String extension = "";
-        if (originalName != null && originalName.contains(".")) {
-            extension = originalName.substring(originalName.lastIndexOf("."));
-        }
-        String storedName = "temp_avatar_" + userId + "_" + UUID.randomUUID().toString() + extension;
-
-        Path uploadPath = Paths.get(AVATAR_UPLOAD_DIR);
-        if (!Files.exists(uploadPath)) {
-            Files.createDirectories(uploadPath);
-        }
-
-        Path filePath = uploadPath.resolve(storedName);
-        file.transferTo(filePath.toFile());
-
-        return "/uploads/avatars/" + storedName;
-    }
 }

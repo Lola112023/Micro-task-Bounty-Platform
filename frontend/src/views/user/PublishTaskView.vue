@@ -27,6 +27,7 @@ const form = reactive({
   listDays: 7,
 })
 const files = ref<File[]>([])
+const fileList = computed(() => files.value.map(f => ({ name: f.name, size: f.size })))
 
 const rules: FormRules = {
   title: [
@@ -106,6 +107,13 @@ function handleFileChange(file: any) {
   }
   files.value.push(file.raw)
   return false // 阻止自动上传
+}
+
+function handleFileRemove(file: any) {
+  const idx = files.value.findIndex(f => f.name === file.name && f.size === file.size)
+  if (idx >= 0) {
+    files.value.splice(idx, 1)
+  }
 }
 
 async function handleSubmit() {
@@ -217,8 +225,9 @@ async function handleSubmit() {
         <el-upload
           :auto-upload="false"
           :on-change="handleFileChange"
+          :on-remove="handleFileRemove"
           :limit="3"
-          :file-list="files.map(f => ({ name: f.name, size: f.size }))"
+          :file-list="fileList"
           accept=".zip,.rar,.jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
           multiple
         >

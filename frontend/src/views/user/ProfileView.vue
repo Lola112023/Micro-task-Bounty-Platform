@@ -3,11 +3,11 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import {
-  submitAvatarApplication, submitNicknameApplication,
+  submitNicknameApplication,
   submitAnnouncementApplication, getCreditLog, getFinanceRecords,
   getReceivedEvaluations, getGivenEvaluations,
   getNotificationSettings, updateNotificationSettings,
-  applyCreditRestore, checkNicknameAvailable, exportFinanceRecords
+  applyCreditRestore, exportFinanceRecords
 } from '@/api/user'
 import { recharge, withdraw } from '@/api/finance'
 import { formatDateTime, creditScoreColor, pointsToYuan, calcWithdrawFee } from '@/utils/format'
@@ -24,7 +24,6 @@ const auth = useAuthStore()
 const activeTab = ref('basic')
 
 // ── 弹窗控制 ──────────────────────────────────────────────────────────────────
-const avatarVisible = ref(false)
 const nicknameVisible = ref(false)
 const announcementVisible = ref(false)
 const rechargeVisible = ref(false)
@@ -33,10 +32,7 @@ const creditRestoreVisible = ref(false)
 
 // ── 表单 ──────────────────────────────────────────────────────────────────────
 const newNickname = ref('')
-const nicknameAvailable = ref<boolean | null>(null)
-const nicknameChecking = ref(false)
 const newAnnouncement = ref('')
-const avatarFile = ref<File | null>(null)
 const creditRestoreStatement = ref('')
 
 const rechargeForm = reactive({ amount: 100, payMethod: 'wechat' as 'wechat' | 'alipay' })
@@ -121,37 +117,9 @@ function handleTabChange(tab: string | number) {
   if (key === 'notification' && !notifSettings.value) loadNotifSettings()
 }
 
-async function handleAvatarChange(file: { raw?: File }) {
-  if (!file.raw) return
-  const f = file.raw
-  if (f.size > 1024 * 1024) { ElMessage.error('头像文件不超过1MB'); return }
-  if (!['image/jpeg', 'image/png'].includes(f.type)) { ElMessage.error('仅支持jpg/png格式'); return }
-  avatarFile.value = f
-}
-
-async function submitAvatar() {
-  if (!avatarFile.value) { ElMessage.warning('请先选择图片'); return }
-  const fd = new FormData()
-  fd.append('avatar', avatarFile.value)
-  await submitAvatarApplication(fd)
-  ElMessage.success('头像申请已提交，等待审核')
-  avatarVisible.value = false
-}
-
-async function checkNickname() {
-  const err = validateNickname(newNickname.value)
-  if (err !== true) return
-  nicknameChecking.value = true
-  try {
-    const res = await checkNicknameAvailable(newNickname.value)
-    nicknameAvailable.value = res.available
-  } finally { nicknameChecking.value = false }
-}
-
 async function submitNickname() {
   const err = validateNickname(newNickname.value)
   if (err !== true) { ElMessage.error(err); return }
-  if (nicknameAvailable.value === false) { ElMessage.error('昵称已被占用'); return }
   await submitNicknameApplication(newNickname.value)
   ElMessage.success('昵称申请已提交，等待审核')
   nicknameVisible.value = false
@@ -293,17 +261,10 @@ onMounted(() => {
         <div class="info-section">
           <div class="info-item">
             <div class="info-item-left">
-              <div class="info-item-title">头像</div>
-              <div class="info-item-desc">225×225像素，小于1MB，仅支持jpg/png</div>
-            </div>
-            <el-button @click="avatarVisible = true">修改头像</el-button>
-          </div>
-          <div class="info-item">
-            <div class="info-item-left">
               <div class="info-item-title">昵称</div>
               <div class="info-item-desc">当前：{{ user.nickname }} &nbsp;|&nbsp; 每30天可修改一次</div>
             </div>
-            <el-button @click="() => { newNickname = ''; nicknameAvailable = null; nicknameVisible = true }">
+            <el-button @click="() => { newNickname = ''; nicknameVisible = true }">
               修改昵称
             </el-button>
           </div>
@@ -519,44 +480,16 @@ onMounted(() => {
 
   <!-- ─── 弹窗 ─────────────────────────────────────────────────────────────── -->
 
-  <!-- 修改头像 -->
-  <el-dialog v-model="avatarVisible" title="修改头像" width="420px">
-    <el-upload :auto-upload="false" :show-file-list="false"
-      accept="image/jpeg,image/png" :on-change="handleAvatarChange">
-      <el-button type="primary">选择图片</el-button>
-      <template #tip>
-        <div style="font-size:12px;color:#8c8c8c;margin-top:6px">
-          要求：225×225像素，小于1MB，仅支持jpg/png
-        </div>
-      </template>
-    </el-upload>
-    <div v-if="avatarFile" style="margin-top:10px;color:#595959;font-size:13px">
-      已选择：{{ avatarFile.name }}
-    </div>
-    <template #footer>
-      <el-button @click="avatarVisible=false">取消</el-button>
-      <el-button type="primary" @click="submitAvatar">提交申请</el-button>
-    </template>
-  </el-dialog>
-
   <!-- 修改昵称 -->
   <el-dialog v-model="nicknameVisible" title="修改昵称" width="420px">
     <el-alert type="info" :closable="false" style="margin-bottom:12px">
       每30天仅可提交一次修改申请
     </el-alert>
     <el-input v-model="newNickname" placeholder="仅中文/英文/数字，小于10字"
-      :maxlength="9" show-word-limit @blur="checkNickname" />
-    <div v-if="nicknameAvailable === true" style="color:#52c41a;font-size:12px;margin-top:4px">
-      ✓ 昵称可用
-    </div>
-    <div v-if="nicknameAvailable === false" style="color:#ff4d4f;font-size:12px;margin-top:4px">
-      ✗ 昵称已被占用
-    </div>
+      :maxlength="9" show-word-limit />
     <template #footer>
       <el-button @click="nicknameVisible=false">取消</el-button>
-      <el-button type="primary" :loading="nicknameChecking" @click="submitNickname">
-        提交申请
-      </el-button>
+      <el-button type="primary" @click="submitNickname">提交申请</el-button>
     </template>
   </el-dialog>
 

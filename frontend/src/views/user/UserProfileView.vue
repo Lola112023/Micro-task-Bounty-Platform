@@ -125,10 +125,10 @@ onMounted(loadProfile)
       <el-form label-position="top">
         <el-form-item label="举报类型">
           <el-select v-model="reportType" style="width:100%">
-            <el-option label="涉黄" value="porn" />
-            <el-option label="涉暴" value="violence" />
-            <el-option label="诈骗" value="fraud" />
-            <el-option label="其他" value="other" />
+            <el-option label="涉黄" value="PORNOGRAPHY" />
+            <el-option label="涉暴" value="VIOLENCE" />
+            <el-option label="诈骗" value="FRAUD" />
+            <el-option label="其他" value="OTHER" />
           </el-select>
         </el-form-item>
         <el-form-item label="举报证据（100字以内）">

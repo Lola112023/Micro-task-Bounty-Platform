@@ -11,7 +11,7 @@ import { formatDateTime } from '@/utils/format'
 import { ElMessage } from 'element-plus'
 
 const route = useRoute()
-const activeTab = ref((route.query.tab as string) || 'avatar')
+const activeTab = ref((route.query.tab as string) || 'nickname')
 
 // ── 审核列表 ──────────────────────────────────────────────────────────────────
 const reviews = ref<AdminReviewItem[]>([])
@@ -72,7 +72,7 @@ async function loadAppeals() {
 
 function handleTabChange(tab: string | number) {
   const name = String(tab)
-  if (name === 'avatar' || name === 'nickname' || name === 'announcement') loadReviews(name)
+  if (name === 'nickname' || name === 'announcement') loadReviews(name)
   if (name === 'report') loadReports()
   if (name === 'appeal') loadAppeals()
 }
@@ -126,7 +126,6 @@ watch(() => route.query.tab, (v) => { if (v) { activeTab.value = v as string; ha
     <h2 style="margin-bottom:20px">🔍 审核管理</h2>
     <div class="card">
       <el-tabs v-model="activeTab" @tab-change="handleTabChange">
-        <el-tab-pane label="🖼️ 头像审核" name="avatar" />
         <el-tab-pane label="📝 昵称审核" name="nickname" />
         <el-tab-pane label="📢 公告栏审核" name="announcement" />
         <el-tab-pane label="🚨 举报处理" name="report" />
@@ -134,19 +133,17 @@ watch(() => route.query.tab, (v) => { if (v) { activeTab.value = v as string; ha
       </el-tabs>
 
       <!-- 头像/昵称/公告栏 审核 -->
-      <div v-if="['avatar','nickname','announcement'].includes(activeTab)">
+      <div v-if="['nickname','announcement'].includes(activeTab)">
         <el-table v-loading="reviewLoading" :data="reviews" empty-text="暂无待审核申请">
           <el-table-column prop="applicantNickname" label="申请人" width="120" />
           <el-table-column label="申请类型" width="100">
             <template #default="{ row }">
-              <el-tag size="small">{{ ({'AVATAR':'头像', 'NICKNAME':'昵称', 'ANNOUNCEMENT':'公告栏'} as Record<string,string>)[row.auditType as string] || row.auditType }}</el-tag>
+              <el-tag size="small">{{ ({'NICKNAME':'昵称', 'ANNOUNCEMENT':'公告栏'} as Record<string,string>)[row.auditType as string] || row.auditType }}</el-tag>
             </template>
           </el-table-column>
           <el-table-column label="申请内容" min-width="200">
             <template #default="{ row }">
-              <img v-if="row.auditType === 'AVATAR'" :src="row.newValue"
-                style="width:40px;height:40px;border-radius:50%;object-fit:cover" />
-              <span v-else>{{ row.newValue }}</span>
+              <span>{{ row.newValue }}</span>
             </template>
           </el-table-column>
           <el-table-column label="申请时间" width="155">

@@ -70,16 +70,6 @@ public class UserController {
     }
 
     /**
-     * PUT /api/users/me/avatar - request avatar change.
-     * Accepts multipart file upload.
-     */
-    @PutMapping("/me/avatar")
-    public ApiResponse<Void> updateAvatar(@RequestParam("file") MultipartFile file) {
-        userService.requestAvatarChange(file);
-        return ApiResponse.success("头像修改申请已提交，请等待管理员审核", null);
-    }
-
-    /**
      * PUT /api/users/me/announcement - request announcement change.
      * Body: { "announcement": "..." }
      */

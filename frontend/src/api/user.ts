@@ -9,7 +9,7 @@ import type { CreditLogItem, FinanceRecord } from '@/types/finance'
 import type { NotificationSettings } from '@/types/notification'
 import type { PageResult } from '@/types/task'
 import {
-  MOCK_USER, MOCK_CREDIT_LOGS, MOCK_FINANCE_RECORDS,
+  MOCK_CREDIT_LOGS, MOCK_FINANCE_RECORDS,
   MOCK_EVALUATIONS, MOCK_NOTIF_SETTINGS, emptyPage,
 } from './mock'
 
@@ -19,8 +19,7 @@ function warn(fn: string) {
 
 /** 获取当前用户信息 */
 export async function getMyInfo(): Promise<UserInfo> {
-  try { return await request.get('/users/me') }
-  catch { warn('getMyInfo'); return MOCK_USER }
+  return request.get('/users/me')
 }
 
 /** 获取他人公开主页 */
@@ -41,14 +40,9 @@ export async function getUserEvaluations(
   catch { warn('getUserEvaluations'); return emptyPage() }
 }
 
-/** 提交头像修改申请 */
-export async function submitAvatarApplication(formData: FormData): Promise<ReviewApplication> {
-  return request.post('/users/me/avatar', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
-}
-
 /** 提交昵称修改申请 */
 export async function submitNicknameApplication(nickname: string): Promise<ReviewApplication> {
-  return request.post('/users/me/nickname', { nickname })
+  return request.put('/users/me/nickname', { newNickname: nickname })
 }
 
 /** 校验昵称唯一性 */
@@ -59,7 +53,7 @@ export async function checkNicknameAvailable(nickname: string): Promise<{ availa
 
 /** 提交公告栏修改申请 */
 export async function submitAnnouncementApplication(content: string): Promise<ReviewApplication> {
-  return request.post('/users/me/announcement', { content })
+  return request.put('/users/me/announcement', { announcement: content })
 }
 
 /** 获取当前审核申请状态 */

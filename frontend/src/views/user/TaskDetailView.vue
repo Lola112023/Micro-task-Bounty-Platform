@@ -146,9 +146,11 @@ async function handleExtend() {
   await ElMessageBox.confirm('确认延长截止时间？（每次延长50%，最多2次）', '延长截止', {
     confirmButtonText: '确认', cancelButtonText: '取消',
   })
-  await extendDeadline(Number(props.taskId))
+  const updated = await extendDeadline(Number(props.taskId))
+  if (updated) {
+    task.value = updated
+  }
   ElMessage.success('截止时间已延长')
-  loadTask()
 }
 
 async function handleRequestCancel() {
@@ -447,10 +449,10 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer) })
       <el-form label-position="top">
         <el-form-item label="举报类型">
           <el-select v-model="reportType" style="width:100%">
-            <el-option label="涉黄" value="porn" />
-            <el-option label="涉暴" value="violence" />
-            <el-option label="诈骗" value="fraud" />
-            <el-option label="其他" value="other" />
+            <el-option label="涉黄" value="PORNOGRAPHY" />
+            <el-option label="涉暴" value="VIOLENCE" />
+            <el-option label="诈骗" value="FRAUD" />
+            <el-option label="其他" value="OTHER" />
           </el-select>
         </el-form-item>
         <el-form-item label="举报证据（100字以内）">

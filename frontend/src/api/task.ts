@@ -112,15 +112,13 @@ export async function handleCancelRequest(taskId: number, agree: boolean): Promi
 }
 
 /** 延长截止时间 */
-export async function extendDeadline(taskId: number): Promise<void> {
+export async function extendDeadline(taskId: number): Promise<TaskDetail> {
   return request.put(`/tasks/${taskId}/extend`)
 }
 
 /** 发起申诉 */
-export async function appealTask(taskId: number, reason: string, formData?: FormData): Promise<void> {
-  const data = formData || new FormData()
-  data.append('reason', reason)
-  return request.post(`/tasks/${taskId}/appeal`, data, { headers: { 'Content-Type': 'multipart/form-data' } })
+export async function appealTask(taskId: number, reason: string): Promise<void> {
+  return request.post(`/tasks/${taskId}/appeal`, { reason })
 }
 
 /** 评价任务 */
@@ -130,7 +128,7 @@ export async function evaluateTask(taskId: number, stars: number, comment?: stri
 
 /** 举报任务 */
 export async function reportTask(taskId: number, type: string, evidence: string): Promise<void> {
-  return request.post(`/tasks/${taskId}/report`, { type, evidence })
+  return request.post('/reports', { targetType: 'TASK', targetId: taskId, reportType: type, evidence })
 }
 
 /** 获取留言列表 */
@@ -179,5 +177,5 @@ export async function getMyApplications(params: {
 
 /** 举报用户 */
 export async function reportUser(userId: number, type: string, evidence: string): Promise<void> {
-  return request.post(`/users/${userId}/report`, { type, evidence })
+  return request.post('/reports', { targetType: 'USER', targetId: userId, reportType: type, evidence })
 }

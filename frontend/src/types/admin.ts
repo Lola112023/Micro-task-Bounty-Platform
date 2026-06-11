@@ -6,7 +6,6 @@ export interface DashboardStats {
   inProgressTasks: number
   pendingConfirmTasks: number
   overdueTasks: number
-  pendingAvatarAudits: number
   pendingNicknameAudits: number
   pendingAnnouncementAudits: number
   pendingAppeals: number

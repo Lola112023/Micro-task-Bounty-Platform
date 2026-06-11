@@ -200,10 +200,47 @@ public class TaskController {
     @PutMapping("/tasks/{taskId}/extend")
     public ApiResponse<TaskDTO> extendDeadline(
             @PathVariable Long taskId,
-            @RequestBody @Valid TaskExtendRequest request) {
+            @RequestBody(required = false) TaskExtendRequest request) {
         Long publisherId = userContext.getCurrentUserId();
         TaskDTO taskDTO = taskService.extendDeadline(taskId, publisherId, request);
         return ApiResponse.success("截止时间已延长", taskDTO);
+    }
+
+    // ========================================================================
+    // POST /api/tasks/{taskId}/force-cancel - Force cancel (publisher, IN_PROGRESS)
+    // ========================================================================
+
+    @PostMapping("/tasks/{taskId}/force-cancel")
+    public ApiResponse<Void> forceCancelTask(@PathVariable Long taskId) {
+        Long publisherId = userContext.getCurrentUserId();
+        taskService.forceCancelTask(taskId, publisherId);
+        return ApiResponse.success("任务已强制取消，接单者记录超时扣分", null);
+    }
+
+    // ========================================================================
+    // POST /api/tasks/{taskId}/request-cancel - Worker requests to cancel (IN_PROGRESS)
+    // ========================================================================
+
+    @PostMapping("/tasks/{taskId}/request-cancel")
+    public ApiResponse<Void> requestCancelTask(
+            @PathVariable Long taskId,
+            @RequestBody @Valid TaskCancelRequest request) {
+        Long userId = userContext.getCurrentUserId();
+        taskService.requestCancelTask(taskId, userId, request);
+        return ApiResponse.success("取消申请已提交，任务已取消", null);
+    }
+
+    // ========================================================================
+    // POST /api/tasks/{taskId}/handle-cancel - Publisher handles cancel request
+    // ========================================================================
+
+    @PostMapping("/tasks/{taskId}/handle-cancel")
+    public ApiResponse<Void> handleCancelRequest(
+            @PathVariable Long taskId,
+            @RequestBody HandleCancelRequest request) {
+        Long publisherId = userContext.getCurrentUserId();
+        taskService.handleCancelRequestTask(taskId, publisherId, request);
+        return ApiResponse.success(request.isAgree() ? "已同意取消申请" : "已拒绝取消申请", null);
     }
 
     // ========================================================================

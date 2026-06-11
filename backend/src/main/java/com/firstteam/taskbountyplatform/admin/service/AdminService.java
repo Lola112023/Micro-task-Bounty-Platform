@@ -122,15 +122,12 @@ public class AdminService {
         com.firstteam.taskbountyplatform.common.enums.ReviewAuditStatus pendingStatus =
                 com.firstteam.taskbountyplatform.common.enums.ReviewAuditStatus.PENDING;
         long pendingAuditCount = reviewAuditRepository.countByStatus(pendingStatus);
-        dto.setPendingAvatarAudits(0);
         dto.setPendingNicknameAudits(0);
         dto.setPendingAnnouncementAudits(0);
         // Count by type from all pending audits
         List<ReviewAudit> pendingAudits = reviewAuditRepository.findByStatus(pendingStatus, Pageable.unpaged()).getContent();
         for (ReviewAudit audit : pendingAudits) {
-            if (audit.getAuditType() == AuditItemType.AVATAR) {
-                dto.setPendingAvatarAudits(dto.getPendingAvatarAudits() + 1);
-            } else if (audit.getAuditType() == AuditItemType.NICKNAME) {
+            if (audit.getAuditType() == AuditItemType.NICKNAME) {
                 dto.setPendingNicknameAudits(dto.getPendingNicknameAudits() + 1);
             } else if (audit.getAuditType() == AuditItemType.ANNOUNCEMENT) {
                 dto.setPendingAnnouncementAudits(dto.getPendingAnnouncementAudits() + 1);
@@ -536,12 +533,6 @@ public class AdminService {
                 notificationType = NotificationType.NICKNAME_APPROVED;
                 notificationTitle = "昵称审核通过";
                 break;
-            case AVATAR:
-                user.setAvatarUrl(audit.getNewValue());
-                actionType = AuditActionType.ADMIN_APPROVE_AVATAR;
-                notificationType = NotificationType.AVATAR_APPROVED;
-                notificationTitle = "头像审核通过";
-                break;
             case ANNOUNCEMENT:
                 user.setAnnouncement(audit.getNewValue());
                 actionType = AuditActionType.ADMIN_APPROVE_ANNOUNCEMENT;
@@ -595,11 +586,6 @@ public class AdminService {
                 notificationType = NotificationType.NICKNAME_REJECTED;
                 notificationTitle = "昵称审核被拒";
                 break;
-            case AVATAR:
-                actionType = AuditActionType.ADMIN_REJECT_AVATAR;
-                notificationType = NotificationType.AVATAR_REJECTED;
-                notificationTitle = "头像审核被拒";
-                break;
             case ANNOUNCEMENT:
                 actionType = AuditActionType.ADMIN_REJECT_ANNOUNCEMENT;
                 notificationType = NotificationType.ANNOUNCEMENT_REJECTED;
@@ -640,7 +626,6 @@ public class AdminService {
 
                 notificationService.createNotification(audit.getApplicantId(),
                         audit.getAuditType() == AuditItemType.NICKNAME ? NotificationType.NICKNAME_REJECTED :
-                        audit.getAuditType() == AuditItemType.AVATAR ? NotificationType.AVATAR_REJECTED :
                         NotificationType.ANNOUNCEMENT_REJECTED,
                         "审核超时自动拒绝",
                         "您的" + audit.getAuditType().name() + "审核因超时（24小时）被自动拒绝。",

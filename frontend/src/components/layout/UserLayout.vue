@@ -15,9 +15,8 @@ const sidebarCollapsed = ref(false)
 
 onMounted(() => {
   notif.startPolling()
-  // mock token 时跳过网络请求，user 数据已在登录时写入
   const token = auth.token
-  if (!auth.user && token && !token.startsWith('mock-')) {
+  if (token && !token.startsWith('mock-')) {
     auth.fetchUserInfo()
   }
 })

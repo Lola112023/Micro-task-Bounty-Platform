@@ -56,11 +56,6 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
       <div class="card" style="margin-bottom:20px">
         <div class="card-title">🔔 待处理事项</div>
         <div class="pending-grid">
-          <div class="pending-item" @click="router.push('/admin/reviews?tab=avatar')">
-            <div class="pending-icon">🖼️</div>
-            <div class="pending-count">{{ stats.pendingAvatarAudits }}</div>
-            <div class="pending-label">待审核头像</div>
-          </div>
           <div class="pending-item" @click="router.push('/admin/reviews?tab=nickname')">
             <div class="pending-icon">📝</div>
             <div class="pending-count">{{ stats.pendingNicknameAudits }}</div>
@@ -101,7 +96,7 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
 }
 .pending-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 14px;
 }
 .pending-item {
