@@ -831,6 +831,34 @@ public class TaskService {
     }
 
     // ========================================================================
+    // 10b. getMyAcceptedTasks — tasks where I am the winner
+    // ========================================================================
+
+    @Transactional(readOnly = true)
+    public PageResult<TaskCardDTO> getMyAcceptedTasks(Long userId, String status, Pageable pageable) {
+        Sort sort = Sort.by(Sort.Direction.DESC, "awardedAt");
+        Pageable sortedPageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sort);
+
+        Page<Task> page;
+        if (status != null && !status.isBlank()) {
+            try {
+                TaskStatus.fromName(status);
+            } catch (IllegalArgumentException e) {
+                throw new BusinessException(400, "无效的任务状态: " + status);
+            }
+            page = taskRepository.findByWinnerIdAndStatus(userId, TaskStatus.fromName(status), sortedPageable);
+        } else {
+            page = taskRepository.findByWinnerIdOrderByAwardedAtDesc(userId, sortedPageable);
+        }
+
+        List<TaskCardDTO> cards = page.getContent().stream()
+                .map(this::convertToTaskCardDTO)
+                .toList();
+
+        return new PageResult<>(cards, page.getNumber() + 1, page.getSize(), page.getTotalElements());
+    }
+
+    // ========================================================================
     // 11. getTaskMessages
     // ========================================================================
 

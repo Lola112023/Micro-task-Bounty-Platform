@@ -34,6 +34,10 @@ public interface TaskRepository extends JpaRepository<Task, Long>, JpaSpecificat
     // 中标者的任务
     List<Task> findByWinnerId(Long winnerId);
 
+    Page<Task> findByWinnerIdOrderByAwardedAtDesc(Long winnerId, Pageable pageable);
+
+    Page<Task> findByWinnerIdAndStatus(Long winnerId, TaskStatus status, Pageable pageable);
+
     // 超时未接单的任务
     @Query("SELECT t FROM Task t WHERE t.status = 'PUBLISHED' AND t.publishedAt < :cutoffDate")
     List<Task> findExpiredPublishedTasks(@Param("cutoffDate") LocalDateTime cutoffDate);

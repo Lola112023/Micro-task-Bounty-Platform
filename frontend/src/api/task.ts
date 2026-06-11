@@ -159,7 +159,10 @@ export async function getMyPublishedTasks(params: {
 export async function getMyAcceptedTasks(params: {
   status?: string; page?: number; pageSize?: number
 }): Promise<PageResult<TaskListItem>> {
-  try { return await request.get('/tasks/my/accepted', { params }) }
+  try {
+    const { pageSize, ...rest } = params
+    return await request.get('/my/accepted-tasks', { params: { ...rest, size: pageSize || 10 } })
+  }
   catch { warn('getMyAcceptedTasks'); return emptyPage() }
 }
 

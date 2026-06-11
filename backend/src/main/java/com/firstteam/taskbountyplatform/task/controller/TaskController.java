@@ -235,6 +235,21 @@ public class TaskController {
     }
 
     // ========================================================================
+    // GET /api/my/accepted-tasks - Get tasks I accepted (as winner)
+    // ========================================================================
+
+    @GetMapping("/my/accepted-tasks")
+    public ApiResponse<PageResult<TaskCardDTO>> getMyAcceptedTasks(
+            @RequestParam(required = false) String status,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        Long userId = userContext.getCurrentUserId();
+        Pageable pageable = PageRequest.of(page - 1, size);
+        PageResult<TaskCardDTO> result = taskService.getMyAcceptedTasks(userId, status, pageable);
+        return ApiResponse.success(result);
+    }
+
+    // ========================================================================
     // GET /api/my/applications - Get my application history
     // ========================================================================
 
