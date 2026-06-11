@@ -86,7 +86,9 @@ jobs:
           path: frontend/dist/
 
       - name: Build & test backend
-        run: ./mvnw -B verify -DskipTests=false
+        run: |
+          chmod +x ./mvnw
+          ./mvnw -B verify -DskipTests=false
         working-directory: backend
 
       - name: Publish test report
@@ -96,6 +98,7 @@ jobs:
           name: JUnit Tests
           path: backend/target/surefire-reports/*.xml
           reporter: java-junit
+          fail-on-error: false
 
   # =========================================================================
   # Package — full JAR with embedded frontend
@@ -123,7 +126,9 @@ jobs:
           path: frontend/dist/
 
       - name: Package JAR
-        run: ./mvnw -B package -DskipTests
+        run: |
+          chmod +x ./mvnw
+          ./mvnw -B package -DskipTests
         working-directory: backend
 
       - name: Upload JAR artifact
@@ -152,7 +157,9 @@ jobs:
           cache: maven
 
       - name: Generate Javadoc
-        run: ./mvnw -B javadoc:javadoc -DskipTests
+        run: |
+          chmod +x ./mvnw
+          ./mvnw -B javadoc:javadoc -DskipTests
         working-directory: backend
 
       - name: Upload Javadoc
