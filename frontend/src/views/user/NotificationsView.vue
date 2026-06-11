@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useNotificationStore } from '@/stores/notification'
 import { getNotifications, deleteNotification, batchDeleteNotifications } from '@/api/notification'
 import type { NotificationItem } from '@/types/notification'
+import { NOTIFICATION_TYPE_LABEL, NOTIFICATION_TYPE_COLOR, NOTIFICATION_TYPE_GROUPS } from '@/types/notification'
 import { formatDateTime } from '@/utils/format'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
@@ -19,14 +20,6 @@ const typeFilter = ref('')
 const readFilter = ref<boolean | undefined>(undefined)
 const selected = ref<number[]>([])
 
-const typeOptions = [
-  { label: '全部类型', value: '' },
-  { label: '任务通知', value: 'TASK' },
-  { label: '系统通知', value: 'SYSTEM' },
-  { label: '评价通知', value: 'EVALUATION' },
-  { label: '信用分', value: 'CREDIT_CHANGE' },
-]
-
 async function fetchList() {
   loading.value = true
   try {
@@ -38,36 +31,66 @@ async function fetchList() {
     })
     list.value = res.list
     total.value = res.total
+  } catch {
+    ElMessage.error('获取通知列表失败')
   } finally {
     loading.value = false
   }
 }
 
 async function handleReadAll() {
-  await notifStore.readAll()
-  fetchList()
+  try {
+    await notifStore.readAll()
+    await fetchList()
+  } catch {
+    // ignore
+  }
 }
 
 async function handleDelete(id: number) {
-  await deleteNotification(id)
-  ElMessage.success('已删除')
-  fetchList()
+  try {
+    await deleteNotification(id)
+    ElMessage.success('已删除')
+    await fetchList()
+  } catch {
+    ElMessage.error('删除失败')
+  }
 }
 
 async function handleBatchDelete() {
   if (!selected.value.length) return
-  await ElMessageBox.confirm(`确认删除选中的 ${selected.value.length} 条通知？`, '批量删除', {
-    confirmButtonText: '确认', cancelButtonText: '取消', type: 'warning'
-  })
-  await batchDeleteNotifications(selected.value)
-  selected.value = []
-  fetchList()
+  try {
+    await ElMessageBox.confirm(`确认删除选中的 ${selected.value.length} 条通知？`, '批量删除', {
+      confirmButtonText: '确认', cancelButtonText: '取消', type: 'warning'
+    })
+  } catch {
+    return // 用户取消
+  }
+  try {
+    await batchDeleteNotifications(selected.value)
+    selected.value = []
+    await fetchList()
+    ElMessage.success('已删除')
+  } catch {
+    ElMessage.error('批量删除失败')
+  }
 }
 
-function handleClickItem(item: NotificationItem) {
-  notifStore.readOne(item.id)
-  list.value.find(n => n.id === item.id && (n.isRead = true))
+async function handleClickItem(item: NotificationItem) {
+  if (!item.isRead) {
+    try { await notifStore.readOne(item.id) } catch { /* ignore */ }
+    const found = list.value.find(n => n.id === item.id)
+    if (found) found.isRead = true
+  }
   if (item.targetUrl) router.push(item.targetUrl)
+}
+
+function getTypeLabel(type: string): string {
+  return NOTIFICATION_TYPE_LABEL[type as keyof typeof NOTIFICATION_TYPE_LABEL] || type
+}
+
+function getTypeColor(type: string): string {
+  return NOTIFICATION_TYPE_COLOR[type as keyof typeof NOTIFICATION_TYPE_COLOR] || '#999'
 }
 
 onMounted(fetchList)
@@ -83,7 +106,7 @@ onMounted(fetchList)
         </el-button>
         <el-button size="small" @click="handleReadAll">全部标记已读</el-button>
         <el-select v-model="typeFilter" size="small" style="width:120px" @change="() => { page=1; fetchList() }">
-          <el-option v-for="t in typeOptions" :key="t.value" :label="t.label" :value="t.value" />
+          <el-option v-for="t in NOTIFICATION_TYPE_GROUPS" :key="t.value" :label="t.label" :value="t.value" />
         </el-select>
         <el-radio-group v-model="readFilter" size="small" @change="() => { page=1; fetchList() }">
           <el-radio-button :value="undefined">全部</el-radio-button>
@@ -108,6 +131,10 @@ onMounted(fetchList)
               @change="(v: any) => v ? selected.push(item.id) : selected.splice(selected.indexOf(item.id), 1)"
               @click.stop
             />
+            <span
+              class="notif-type-tag"
+              :style="{ background: getTypeColor(item.type) }"
+            >{{ getTypeLabel(item.type) }}</span>
             <div class="notif-body">
               <div class="notif-title">{{ item.title }}</div>
               <div class="notif-content">{{ item.content }}</div>
@@ -163,10 +190,25 @@ onMounted(fetchList)
 }
 .notif-item:hover { background: #f9f9f9; }
 .notif-item.unread { background: #fafafa; }
-.notif-body { flex: 1; }
+.notif-type-tag {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+  margin-top: 2px;
+}
+.notif-body { flex: 1; min-width: 0; }
 .notif-title { font-weight: 600; font-size: 14px; margin-bottom: 3px; }
 .notif-content { color: #595959; font-size: 13px; margin-bottom: 4px; }
 .notif-time { font-size: 12px; color: #bbb; }
-.notif-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.notif-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
 .pagination-wrap { display: flex; justify-content: center; margin-top: 20px; }
 </style>

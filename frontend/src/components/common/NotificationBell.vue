@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useNotificationStore } from '@/stores/notification'
+import { NOTIFICATION_TYPE_LABEL, NOTIFICATION_TYPE_COLOR } from '@/types/notification'
 import { formatDateTime } from '@/utils/format'
 
 const router = useRouter()
@@ -12,8 +13,10 @@ onMounted(() => notif.fetchRecentUnread())
 
 const displayCount = (n: number) => (n > 99 ? '99+' : String(n))
 
-function handleClick(item: { id: number; targetUrl: string | null; isRead: boolean }) {
-  if (!item.isRead) notif.readOne(item.id)
+async function handleClick(item: { id: number; targetUrl: string | null; isRead: boolean }) {
+  if (!item.isRead) {
+    try { await notif.readOne(item.id) } catch { /* ignore */ }
+  }
   visible.value = false
   if (item.targetUrl) router.push(item.targetUrl)
 }
@@ -22,13 +25,21 @@ function goNotifications() {
   visible.value = false
   router.push('/notifications')
 }
+
+function getTypeLabel(type: string): string {
+  return NOTIFICATION_TYPE_LABEL[type as keyof typeof NOTIFICATION_TYPE_LABEL] || type
+}
+
+function getTypeColor(type: string): string {
+  return NOTIFICATION_TYPE_COLOR[type as keyof typeof NOTIFICATION_TYPE_COLOR] || '#999'
+}
 </script>
 
 <template>
   <el-popover
     v-model:visible="visible"
     placement="bottom-end"
-    :width="360"
+    :width="380"
     trigger="click"
     @show="notif.fetchRecentUnread()"
   >
@@ -62,7 +73,13 @@ function goNotifications() {
         :class="{ unread: !item.isRead }"
         @click="handleClick(item)"
       >
-        <div class="notif-item-title">{{ item.title }}</div>
+        <div class="notif-item-title">
+          <span
+            class="notif-type-tag"
+            :style="{ background: getTypeColor(item.type) }"
+          >{{ getTypeLabel(item.type) }}</span>
+          {{ item.title }}
+        </div>
         <div class="notif-item-content">{{ item.content }}</div>
         <div class="notif-item-time">{{ formatDateTime(item.createdAt) }}</div>
       </div>
@@ -126,6 +143,15 @@ function goNotifications() {
 
 .notif-item.unread {
   background: #fafafa;
+}
+
+.notif-type-tag {
+  font-size: 10px;
+  color: #fff;
+  padding: 1px 6px;
+  border-radius: 8px;
+  margin-right: 6px;
+  vertical-align: middle;
 }
 
 .notif-item-title {

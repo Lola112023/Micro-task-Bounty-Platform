@@ -138,11 +138,12 @@ public class NotificationService {
 
     /**
      * Get paginated notifications for a user, with optional type filter.
+     * Supports prefix matching (e.g. "TASK" matches TASK_AWARDED, TASK_REJECTED, etc.).
      */
     @Transactional(readOnly = true)
     public Page<Notification> getNotifications(Long userId, String type, Pageable pageable) {
         if (type != null && !type.isBlank()) {
-            return notificationRepository.findByReceiverIdAndType(userId, type, pageable);
+            return notificationRepository.findByReceiverIdAndTypePrefix(userId, type, pageable);
         }
         return notificationRepository.findByReceiverIdOrderByCreatedAtDesc(userId, pageable);
     }

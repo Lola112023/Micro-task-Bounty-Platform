@@ -19,21 +19,24 @@ export const useNotificationStore = defineStore('notification', () => {
 
   async function fetchRecentUnread() {
     try {
-      recentList.value = await getRecentUnread()
+      const data = await getRecentUnread()
+      if (data && data.length > 0) {
+        recentList.value = data
+      }
     } catch {
-      // 静默失败
+      // 静默失败，不清空已有数据
     }
   }
 
   async function readOne(id: number) {
-    await markAsRead(id)
+    try { await markAsRead(id) } catch { /* ignore */ }
     const item = recentList.value.find((n) => n.id === id)
     if (item) item.isRead = true
     if (unreadCount.value > 0) unreadCount.value--
   }
 
   async function readAll() {
-    await markAllAsRead()
+    try { await markAllAsRead() } catch { /* ignore */ }
     recentList.value.forEach((n) => (n.isRead = true))
     unreadCount.value = 0
   }

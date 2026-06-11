@@ -160,7 +160,7 @@ export const MOCK_TASK_DETAIL: TaskDetail = {
 export const MOCK_NOTIFICATIONS: NotificationItem[] = [
   {
     id: 1,
-    type: 'TASK_SELECTED',
+    type: 'TASK_AWARDED',
     title: '🎉 任务中标通知',
     content: '您已成功中标任务"帮忙取快递"，请尽快与发布者联系',
     isRead: false,
@@ -169,7 +169,7 @@ export const MOCK_NOTIFICATIONS: NotificationItem[] = [
   },
   {
     id: 2,
-    type: 'TASK_TIMEOUT',
+    type: 'OVERDUE_WARNING',
     title: '⏰ 超时提醒',
     content: '任务"PS修图"将在2小时后截止，请尽快完成',
     isRead: false,
@@ -178,7 +178,7 @@ export const MOCK_NOTIFICATIONS: NotificationItem[] = [
   },
   {
     id: 3,
-    type: 'SYSTEM',
+    type: 'SYSTEM_BROADCAST',
     title: '📢 系统公告',
     content: '平台将于本周日20:00进行维护升级，预计持续2小时',
     isRead: true,

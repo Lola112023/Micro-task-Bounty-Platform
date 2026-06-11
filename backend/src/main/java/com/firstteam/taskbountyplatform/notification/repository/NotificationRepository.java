@@ -22,6 +22,11 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
 
     Page<Notification> findByReceiverIdAndType(Long receiverId, String type, Pageable pageable);
 
+    @Query("SELECT n FROM Notification n WHERE n.receiverId = :userId AND n.type LIKE CONCAT(:prefix, '%')")
+    Page<Notification> findByReceiverIdAndTypePrefix(@Param("userId") Long userId,
+                                                      @Param("prefix") String prefix,
+                                                      Pageable pageable);
+
     @Modifying
     @Query("UPDATE Notification n SET n.isRead = true, n.readAt = :now WHERE n.id IN :ids")
     int markAsRead(@Param("ids") List<Long> ids, @Param("now") LocalDateTime now);
