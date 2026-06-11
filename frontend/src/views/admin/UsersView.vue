@@ -26,7 +26,7 @@ async function fetchList() {
     const res = await getAdminUsers({
       keyword: keyword.value || undefined,
       status: statusFilter.value || undefined,
-      creditRange: creditFilter.value || undefined,
+      minScore: creditFilter.value ? parseInt(creditFilter.value) : undefined,
       page: page.value,
       pageSize,
     })
@@ -120,9 +120,9 @@ onMounted(fetchList)
           <template #default="{ row }">
             <el-button size="small" link @click="router.push(`/admin/users/${row.id}`)">详情</el-button>
             <el-button v-if="row.accountStatus === 'NORMAL'" size="small" link type="danger"
-              @click="handleFreeze(row)">冻结</el-button>
+              @click="handleFreeze(row as any)">冻结</el-button>
             <el-button v-else size="small" link type="success"
-              @click="handleUnfreeze(row)">解冻</el-button>
+              @click="handleUnfreeze(row as any)">解冻</el-button>
           </template>
         </el-table-column>
       </el-table>

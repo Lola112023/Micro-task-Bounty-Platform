@@ -87,7 +87,7 @@ onMounted(fetchList)
           <template #default="{ row }">
             <el-button size="small" link @click="router.push(`/admin/tasks/${row.id}`)">查看</el-button>
             <el-button size="small" link type="danger"
-              @click="() => { removeTarget = row; removeReason = ''; removeDialogVisible = true }">
+              @click="() => { removeTarget = row as any; removeReason = ''; removeDialogVisible = true }">
               强制下架
             </el-button>
             <el-button v-if="['IN_PROGRESS','PENDING_CONFIRM','APPEALING'].includes(row.status)"

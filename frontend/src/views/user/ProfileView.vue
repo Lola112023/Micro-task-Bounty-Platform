@@ -237,7 +237,7 @@ onMounted(() => {
         <div class="profile-info">
           <div class="profile-nickname">{{ user.nickname }}</div>
           <div class="profile-meta">
-            <span>{{ user.studentId }}</span>
+            <span>{{ user.studentNo }}</span>
             <span v-if="user.grade">{{ user.grade }}</span>
             <span v-if="user.college">{{ user.college }}</span>
             <span v-if="user.academy">{{ user.academy }}</span>

@@ -5,7 +5,7 @@
 import request from './index'
 import type { NotificationItem } from '@/types/notification'
 import type { PageResult } from '@/types/task'
-import { MOCK_NOTIFICATIONS, emptyPage } from './mock'
+import { MOCK_NOTIFICATIONS } from './mock'
 
 function warn(fn: string) {
   console.warn(`[Mock] ${fn} — 后端未就绪，返回 mock 数据`)

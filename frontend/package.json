@@ -9,8 +9,7 @@
     "typecheck": "vue-tsc -b",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest",
-    "lint": "vue-tsc --noEmit"
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@vueuse/core": "^14.3.0",

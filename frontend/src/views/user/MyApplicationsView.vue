@@ -3,7 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getMyApplications } from '@/api/task'
 import type { TaskApplication } from '@/types/task'
-import { formatDateTime, APPLICATION_STATUS_LABEL } from '@/utils/format'
+import { formatDateTime } from '@/utils/format'
 import StatusTag from '@/components/common/StatusTag.vue'
 
 const router = useRouter()

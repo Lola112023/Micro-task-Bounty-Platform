@@ -3,7 +3,7 @@ import { ref, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import {
   getReviewList, approveReview, rejectReview,
-  getReportList, verifyReport, rejectReport, rejectReportWithPenalty,
+  getReportList, verifyReport, rejectReport,
   getAppealList, processAppeal
 } from '@/api/admin'
 import type { AdminReviewItem, AdminReportItem, AdminAppealItem } from '@/types/admin'
@@ -70,10 +70,11 @@ async function loadAppeals() {
   } finally { appealLoading.value = false }
 }
 
-function handleTabChange(tab: string) {
-  if (tab === 'avatar' || tab === 'nickname' || tab === 'announcement') loadReviews(tab)
-  if (tab === 'report') loadReports()
-  if (tab === 'appeal') loadAppeals()
+function handleTabChange(tab: string | number) {
+  const name = String(tab)
+  if (name === 'avatar' || name === 'nickname' || name === 'announcement') loadReviews(name)
+  if (name === 'report') loadReports()
+  if (name === 'appeal') loadAppeals()
 }
 
 // ── 审核操作 ──────────────────────────────────────────────────────────────────
@@ -160,9 +161,9 @@ watch(() => route.query.tab, (v) => { if (v) { activeTab.value = v as string; ha
           </el-table-column>
           <el-table-column label="操作" width="140" fixed="right">
             <template #default="{ row }">
-              <el-button v-if="row.status === 'PENDING'" size="small" link type="success" @click="handleApprove(row)">✓ 通过</el-button>
+              <el-button v-if="row.status === 'PENDING'" size="small" link type="success" @click="handleApprove(row as any)">✓ 通过</el-button>
               <el-button v-if="row.status === 'PENDING'" size="small" link type="danger"
-                @click="() => { rejectTarget = row; rejectReason = ''; rejectDialogVisible = true }">
+                @click="() => { rejectTarget = row as any; rejectReason = ''; rejectDialogVisible = true }">
                 ✗ 拒绝
               </el-button>
               <span v-if="row.status !== 'PENDING'" style="color:#8c8c8c;font-size:12px">{{ row.rejectReason || '已处理' }}</span>
@@ -201,10 +202,10 @@ watch(() => route.query.tab, (v) => { if (v) { activeTab.value = v as string; ha
           <el-table-column label="操作" width="150" fixed="right">
             <template #default="{ row }">
               <el-button v-if="row.status === 'PENDING'" size="small" link type="danger"
-                @click="() => { verifyTarget = row; verifyFreezeDays = 5; verifyCreditDeduct = 5; verifyDialogVisible = true }">
+                @click="() => { verifyTarget = row as any; verifyFreezeDays = 5; verifyCreditDeduct = 5; verifyDialogVisible = true }">
                 核实
               </el-button>
-              <el-button v-if="row.status === 'PENDING'" size="small" link @click="handleRejectReport(row)">驳回</el-button>
+              <el-button v-if="row.status === 'PENDING'" size="small" link @click="handleRejectReport(row as any)">驳回</el-button>
               <span v-if="row.status !== 'PENDING'" style="color:#8c8c8c;font-size:12px">{{ row.adminNote || '已处理' }}</span>
             </template>
           </el-table-column>
@@ -242,15 +243,15 @@ watch(() => route.query.tab, (v) => { if (v) { activeTab.value = v as string; ha
             <template #default="{ row }">
               <template v-if="row.status === 'PENDING'">
                 <el-button size="small" link type="success"
-                  @click="() => { judgeTarget=row; judgeType='complete'; judgeOpinion=''; judgeDialogVisible=true }">
+                  @click="() => { judgeTarget=row as any; judgeType='complete'; judgeOpinion=''; judgeDialogVisible=true }">
                   判定完成
                 </el-button>
                 <el-button size="small" link type="danger"
-                  @click="() => { judgeTarget=row; judgeType='cancel'; judgeOpinion=''; judgeDialogVisible=true }">
+                  @click="() => { judgeTarget=row as any; judgeType='cancel'; judgeOpinion=''; judgeDialogVisible=true }">
                   判定取消
                 </el-button>
                 <el-button size="small" link
-                  @click="() => { judgeTarget=row; judgeType='continue'; judgeOpinion=''; judgeDialogVisible=true }">
+                  @click="() => { judgeTarget=row as any; judgeType='continue'; judgeOpinion=''; judgeDialogVisible=true }">
                   继续执行
                 </el-button>
               </template>

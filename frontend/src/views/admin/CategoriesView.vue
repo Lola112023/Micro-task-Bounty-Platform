@@ -93,12 +93,12 @@ onMounted(fetchList)
         </el-table-column>
         <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" link @click="openEdit(row)">编辑</el-button>
+            <el-button size="small" link @click="openEdit(row as any)">编辑</el-button>
             <el-button size="small" link :type="row.enabled ? 'warning' : 'success'"
-              @click="handleToggle(row)">
+              @click="handleToggle(row as any)">
               {{ row.enabled ? '禁用' : '启用' }}
             </el-button>
-            <el-button size="small" link type="danger" @click="handleDelete(row)">删除</el-button>
+            <el-button size="small" link type="danger" @click="handleDelete(row as any)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>

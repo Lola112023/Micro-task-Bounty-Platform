@@ -3,7 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getMyPublishedTasks, getMyAcceptedTasks } from '@/api/task'
 import type { TaskListItem } from '@/types/task'
-import { formatDateTime, TASK_STATUS_LABEL } from '@/utils/format'
+import { formatDateTime } from '@/utils/format'
 import StatusTag from '@/components/common/StatusTag.vue'
 import dayjs from 'dayjs'
 

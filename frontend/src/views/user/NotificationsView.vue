@@ -105,7 +105,7 @@ onMounted(fetchList)
           >
             <el-checkbox
               :model-value="selected.includes(item.id)"
-              @change="(v: boolean) => v ? selected.push(item.id) : selected.splice(selected.indexOf(item.id), 1)"
+              @change="(v: any) => v ? selected.push(item.id) : selected.splice(selected.indexOf(item.id), 1)"
               @click.stop
             />
             <div class="notif-body">
