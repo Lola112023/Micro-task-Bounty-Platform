@@ -139,10 +139,10 @@ jobs:
           retention-days: 7
 
   # =========================================================================
-  # Docs — Javadoc + OpenAPI spec
+  # Docs — OpenAPI spec
   # =========================================================================
   docs:
-    name: Documentation
+    name: API Documentation
     runs-on: ubuntu-latest
     needs: backend
 
@@ -170,19 +170,7 @@ jobs:
           distribution: temurin
           cache: maven
 
-      - name: Generate Javadoc
-        run: |
-          chmod +x ./mvnw
-          ./mvnw -B javadoc:javadoc -DskipTests
-        working-directory: backend
-
-      - name: Upload Javadoc
-        uses: actions/upload-artifact@v4
-        with:
-          name: javadoc
-          path: backend/target/site/apidocs/
-
-      - name: Start app for OpenAPI export
+      - name: Start app
         run: |
           chmod +x ./mvnw
           nohup ./mvnw -B spring-boot:run -Dspring-boot.run.profiles=test > /tmp/app.log 2>&1 &
