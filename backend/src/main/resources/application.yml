@@ -72,3 +72,31 @@ platform:
   freeze-duration-days: 40
   max-concurrent-orders: 3
   user-sync-cron: "0 0 3 1 * ?"  # Monthly on 1st at 3:00 AM
+
+# Actuator health & metrics
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# Logging
+logging:
+  level:
+    root: INFO
+    com.firstteam: DEBUG
+  file:
+    path: ./logs
+    name: ./logs/app.log
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB
+      max-history: 30
+      total-size-cap: 500MB
