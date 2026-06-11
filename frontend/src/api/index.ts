@@ -8,15 +8,19 @@ const request = axios.create({
 
 // 请求拦截器：附加 Token
 request.interceptors.request.use((config) => {
-  // admin token 优先级更高（管理端请求）
-  const adminToken = localStorage.getItem('adminToken')
-  if (adminToken) {
-    config.headers.Authorization = `Bearer ${adminToken}`
-  } else {
-    const token = localStorage.getItem('token')
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
+  const url = config.url || ''
+  // 仅管理端接口使用 admin token，避免用户端请求泄漏管理员身份
+  if (url.startsWith('/admin') || url.startsWith('/api/admin')) {
+    const adminToken = localStorage.getItem('adminToken')
+    if (adminToken) {
+      config.headers.Authorization = `Bearer ${adminToken}`
+      return config
     }
+  }
+  // 普通用户请求使用 user token
+  const token = localStorage.getItem('token')
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
   }
   return config
 })
