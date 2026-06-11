@@ -1,0 +1,175 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  # =========================================================================
+  # Backend — build, test, checkstyle
+  # =========================================================================
+  backend:
+    name: Backend (Java ${{ matrix.java }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        java: [17]
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: 123456
+          MYSQL_DATABASE: test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ matrix.java }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ matrix.java }}
+          distribution: temurin
+          cache: maven
+
+      - name: Build & test backend
+        run: mvn -B verify -DskipTests=false
+        working-directory: backend
+
+      - name: Publish test report
+        if: always()
+        uses: dorny/test-reporter@v2
+        with:
+          name: JUnit Tests
+          path: backend/target/surefire-reports/*.xml
+          reporter: java-junit
+
+      - name: Generate Javadoc
+        run: mvn -B javadoc:javadoc -DskipTests
+        working-directory: backend
+
+      - name: Upload Javadoc artifact
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: javadoc
+          path: backend/target/site/apidocs/
+
+  # =========================================================================
+  # Frontend — build, typecheck, lint, test
+  # =========================================================================
+  frontend:
+    name: Frontend (Node 20)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Type check
+        run: npm run typecheck
+        working-directory: frontend
+
+      - name: Lint
+        run: npm run lint
+        working-directory: frontend
+        continue-on-error: true
+
+      - name: Test
+        run: npm run test
+        working-directory: frontend
+
+      - name: Build
+        run: npm run build
+        working-directory: frontend
+
+  # =========================================================================
+  # API documentation
+  # =========================================================================
+  api-docs:
+    name: API Docs
+    runs-on: ubuntu-latest
+    needs: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: 17
+          distribution: temurin
+          cache: maven
+
+      - name: Generate API docs (OpenAPI spec)
+        run: mvn -B spring-boot:start -Dspring-boot.run.profiles=apidoc
+        working-directory: backend
+        continue-on-error: true
+
+      - name: Upload OpenAPI spec
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi-spec
+          path: backend/target/openapi.json
+        continue-on-error: true
+
+  # =========================================================================
+  # Deploy (manual trigger on workflow_dispatch)
+  # =========================================================================
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    if: github.event_name == 'workflow_dispatch'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: 17
+          distribution: temurin
+          cache: maven
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build frontend
+        run: |
+          npm ci
+          npm run build
+        working-directory: frontend
+
+      - name: Build backend (bundled JAR)
+        run: mvn -B package -DskipTests
+        working-directory: backend
+
+      - name: Upload deployable JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-jar
+          path: backend/target/TaskBountyPlatform-*.jar
